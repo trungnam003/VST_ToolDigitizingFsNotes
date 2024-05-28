@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
+using System.Windows;
 using VST_ToolDigitizingFsNotes.Libs.Services;
 
 namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels;
@@ -10,11 +11,13 @@ public partial class WorkspaceViewModel : ObservableObject
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IWorkspaceService _workspaceService;
+    private readonly HomeViewModel homeViewModel;
 
     public WorkspaceViewModel(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
         _workspaceService = _serviceProvider.GetRequiredService<IWorkspaceService>();
+        homeViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
         Name = _workspaceService.GenerateName();
     }
 
@@ -31,6 +34,12 @@ public partial class WorkspaceViewModel : ObservableObject
     private void SelectFileImport(FileImportFsNoteModel selected)
     {
     }
+    [RelayCommand]
+    private void Start()
+    {
+        MessageBox.Show("Start");
+    }
+
 
 }
 
@@ -40,6 +49,7 @@ public class FileImportFsNoteModel
     public string SourcePath { get; set; }
     public string DestinationPath { get; set; }
     public string ErrorMessage { get; set; }
+    public string WarningMessage { get; set; }
     public Dictionary<string, SheetFsNoteModel> FsNoteSheets { get; set; }
 }
 

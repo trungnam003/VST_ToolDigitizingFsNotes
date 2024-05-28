@@ -45,7 +45,7 @@
                             <Label Content="+ Số lượng file: ">
                             </Label>
                             <Label Content="{Binding WorkspaceViewModel.FileImportFsNoteModels.Count}"></Label>
-                            <Button Content="Chạy số hóa" VerticalAlignment="Center" Margin="15 0" Width="90" Cursor="Hand" IsEnabled="{Binding IsNoBlock}"/>
+                            <Button Content="Chạy số hóa" VerticalAlignment="Center" Margin="15 0" Width="90" Cursor="Hand" IsEnabled="{Binding IsNoBlock}" Command="{Binding WorkspaceViewModel.StartCommand}"/>
                             <Label Content="{Binding WorkspaceViewModel.Name}"></Label>
                         </StackPanel>
                         <DataGrid x:Name="dgDataImport" ItemsSource="{Binding WorkspaceViewModel.FileImportFsNoteModels}" SelectedItem="{Binding WorkspaceViewModel.SelectedFileImport}" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" Margin="0 5 0 0" IsEnabled="{Binding IsNoBlock}">
@@ -56,7 +56,8 @@
                             </DataGrid.ColumnHeaderStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Tên file" Binding="{Binding Name}"></DataGridTextColumn>
-                                <DataGridTextColumn Header="Lỗi" Binding="{Binding ErrorMessage}"></DataGridTextColumn>
+                                <DataGridTextColumn Header="File Lỗi" Binding="{Binding ErrorMessage}"></DataGridTextColumn>
+                                <DataGridTextColumn Header="Sheet lỗi" Binding="{Binding WarningMessage}"></DataGridTextColumn>
                             </DataGrid.Columns>
                             <i:Interaction.Triggers>
                                 <i:EventTrigger EventName="MouseDoubleClick">

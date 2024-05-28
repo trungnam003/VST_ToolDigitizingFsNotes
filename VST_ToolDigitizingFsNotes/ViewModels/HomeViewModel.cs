@@ -188,7 +188,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                         LoadDataFromImportWorkbook(workbook, ref fileImport);
                         fileImports.Add(fileImport);
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                         continue;
                     }
@@ -229,10 +229,10 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         /// </summary>
         /// <param name="workbook"></param>
         /// <param name="fileImports"></param>
-        private static void LoadDataFromImportWorkbook(HSSFWorkbook workbook, ref FileImportFsNoteModel fileImports)
+        private static void LoadDataFromImportWorkbook(HSSFWorkbook workbook, ref FileImportFsNoteModel fileImport)
         {
             var sheetRegex = new Regex(@"^TM[1-6]$");
-            fileImports.FsNoteSheets = new();
+            fileImport.FsNoteSheets = [];
             // loop sheet in workbook and match with sheetRegex
             for (var i = 0; i < workbook.NumberOfSheets; i++)
             {
@@ -255,10 +255,11 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                 {
                     sheetModel.ErrorMessage = ex.Message;
                     //continue;
+                    fileImport.WarningMessage += sheetName + ";";
                 }
                 finally
                 {
-                    fileImports.FsNoteSheets.Add(sheetName, sheetModel);
+                    fileImport.FsNoteSheets.Add(sheetName, sheetModel);
                 }
 
             }
@@ -386,7 +387,70 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             {
                 sheetFsNoteModel.FileUrl = fileUrlCell?.StringCellValue ?? string.Empty;
             }
+
+            if (!ValidateSheetInfo(sheetFsNoteModel))
+            {
+                throw new Exception("Thông tin báo cáo không hợp lệ");
+            }
                
+        }
+
+        private static bool ValidateSheetInfo(SheetFsNoteModel sheetFsNoteModel)
+        {
+            if (string.IsNullOrEmpty(sheetFsNoteModel.StockCode))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(sheetFsNoteModel.ReportTerm))
+            {
+                return false;
+            }
+
+            if (sheetFsNoteModel.Year == 0)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(sheetFsNoteModel.AuditedStatus))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(sheetFsNoteModel.ReportType))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(sheetFsNoteModel.Unit))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(sheetFsNoteModel.FileUrl))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        [RelayCommand]
+        private void StartWorkspaceTask()
+        {
+            try
+            {
+                // show diaglog yes/no
+                var result = MessageBox.Show("Bạn có chắc chắn muốn thực hiện tác vụ này?", "Xác nhận", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result == MessageBoxResult.No)
+                {
+                    return;
+                }
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("Có lỗi xảy ra, vui lòng thử lại sau", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }
