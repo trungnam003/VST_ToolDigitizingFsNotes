@@ -1,0 +1,45 @@
+﻿<UserControl x:Class="VST_ToolDigitizingFsNotes.AppMain.Views.SettingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.Views"
+             xmlns:vm="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.ViewModels"
+             mc:Ignorable="d" 
+             Background="WhiteSmoke"
+             d:DesignHeight="720" d:DesignWidth="1180" d:DataContext="{d:DesignInstance Type=vm:SettingViewModel }">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Label Grid.Row="0" Content="Cấu hình" FontSize="28" FontWeight="SemiBold" HorizontalAlignment="Center"></Label>
+        <StackPanel Grid.Row="1" Orientation="Vertical" Margin="30" VerticalAlignment="Top" HorizontalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                <Label Width="140"  Content="Thư mục làm việc:" FontWeight="SemiBold" Margin="0 0 4 0"></Label>
+                <TextBox Text="{Binding Path=WorkspaceFolderPath, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center" IsEnabled="False" Foreground="Black" Margin="0 0 4 0" Width="580"></TextBox>
+                <Button Content="Chọn thư mục" Width="100" Height="Auto" Command="{Binding Path=SelectWorkspaceFolderCommand}"></Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                <Label Width="140"  Content="File Mapping:" FontWeight="SemiBold" Margin="0 0 4 0"></Label>
+                <TextBox Text="{Binding Path=FileMappingPath, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"  VerticalContentAlignment="Center" IsEnabled="False" Foreground="Black" Margin="0 0 4 0" Width="580"></TextBox>
+                <Button Content="Chọn" Width="100" Height="Auto" Command="{Binding Path=SelectFileMappingPathCommand}"></Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                <Label Width="140" Content="ABBYY 11:" FontWeight="SemiBold" Margin="0 0 4 0"></Label>
+                <TextBox Margin="0 0 4 0" Width="580"></TextBox>
+                <Button Content="Chọn" Width="100" Height="Auto"></Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                <Label Width="140" Content="ABBYY 14:" FontWeight="SemiBold" Margin="0 0 4 0"></Label>
+                <TextBox Margin="0 0 4 0" Width="580"></TextBox>
+                <Button Content="Chọn" Width="100" Height="Auto"></Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                <Label Width="140" Content="ABBYY 15:" FontWeight="SemiBold" Margin="0 0 4 0"></Label>
+                <TextBox Margin="0 0 4 0" Width="580"></TextBox>
+                <Button Content="Chọn" Width="100" Height="Auto"></Button>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>
