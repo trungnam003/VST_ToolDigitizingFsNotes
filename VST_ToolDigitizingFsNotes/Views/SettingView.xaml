@@ -32,13 +32,13 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
                 <Label Width="140" Content="ABBYY 14:" FontWeight="SemiBold" Margin="0 0 4 0"></Label>
-                <TextBox Margin="0 0 4 0" Width="580"></TextBox>
-                <Button Content="Chọn" Width="100" Height="Auto"></Button>
+                <TextBox Margin="0 0 4 0" Width="580"  Text="{Binding Path=Abbyy14Path, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+                <Button Content="Chọn" Width="100" Height="Auto" Command="{Binding Path=SelectFileAbbyy14ExeCommand}"></Button>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
                 <Label Width="140" Content="ABBYY 15:" FontWeight="SemiBold" Margin="0 0 4 0"></Label>
-                <TextBox Margin="0 0 4 0" Width="580"></TextBox>
-                <Button Content="Chọn" Width="100" Height="Auto"></Button>
+                <TextBox Margin="0 0 4 0" Width="580" Text="{Binding Path=Abbyy15Path, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"></TextBox>
+                <Button Content="Chọn" Width="100" Height="Auto" Command="{Binding Path=SelectFileAbbyy15ExeCommand}"></Button>
             </StackPanel>
         </StackPanel>
     </Grid>

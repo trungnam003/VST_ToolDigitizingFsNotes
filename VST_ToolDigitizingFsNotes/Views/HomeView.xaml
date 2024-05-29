@@ -102,13 +102,17 @@
         </Grid>
         <StatusBar Grid.Row="1" Height="30" VerticalAlignment="Center">
             <StatusBarItem>
-                <TextBlock Text="Đang xử lý:" Margin="3" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-            </StatusBarItem>
-            <StatusBarItem>
-                <ProgressBar x:Name="ProgressBar" Width="400" Height="16" IsIndeterminate="{Binding IsLoading}" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock Text="{Binding Status}" Margin="3" Foreground="Blue"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"></ColumnDefinition>
+                        <ColumnDefinition Width="*"></ColumnDefinition>
+                        <ColumnDefinition Width="Auto"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Đang xử lý:" Margin="3" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <ProgressBar Grid.Column="1" x:Name="ProgressBar" Margin="5 0" Width="333" Height="16" IsIndeterminate="{Binding IsLoading}" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    </ProgressBar>
+                    <TextBlock Grid.Column="2" Text="{Binding Status}" Margin="3" Foreground="Blue"/>
+                </Grid>
             </StatusBarItem>
         </StatusBar>
     </Grid>

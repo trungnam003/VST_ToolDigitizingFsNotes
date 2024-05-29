@@ -165,7 +165,6 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             try
             {
                 WorkspaceViewModel = new(_serviceProvider);
-                WorkspaceViewModel.FileImportFsNoteModels = [];
 
                 var fileImports = WorkspaceViewModel.FileImportFsNoteModels;
 
@@ -306,7 +305,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                         Id = noteId,
                         Name = name,
                         TotalValue = 0,
-                        Values = []
+                        Values = [],
                     };
                     if (!string.IsNullOrEmpty(cellCheckParent.ToString()))
                     {
@@ -378,8 +377,8 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
 
             var fileUrlCell = sheet.GetRow(SheetFsNoteModel.MetaData.FileUrlRowIndex)
                 .GetCell(SheetFsNoteModel.MetaData.FileUrlColIndex);
-            
-            if(fileUrlCell?.Hyperlink != null)
+
+            if (fileUrlCell?.Hyperlink != null)
             {
                 sheetFsNoteModel.FileUrl = fileUrlCell.Hyperlink.Address;
             }
@@ -392,7 +391,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             {
                 throw new Exception("Thông tin báo cáo không hợp lệ");
             }
-               
+
         }
 
         private static bool ValidateSheetInfo(SheetFsNoteModel sheetFsNoteModel)
@@ -435,22 +434,5 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             return true;
         }
 
-        [RelayCommand]
-        private void StartWorkspaceTask()
-        {
-            try
-            {
-                // show diaglog yes/no
-                var result = MessageBox.Show("Bạn có chắc chắn muốn thực hiện tác vụ này?", "Xác nhận", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.No)
-                {
-                    return;
-                }
-            }
-            catch (Exception)
-            {
-                MessageBox.Show("Có lỗi xảy ra, vui lòng thử lại sau", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
     }
 }

@@ -1,104 +1,204 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
+using VST_ToolDigitizingFsNotes.Libs.Common;
+using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
 
 namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels;
 
 public partial class WorkspaceViewModel : ObservableObject
 {
+    [JsonIgnore]
     private readonly IServiceProvider _serviceProvider;
+    [JsonIgnore]
     private readonly IWorkspaceService _workspaceService;
-    private readonly HomeViewModel homeViewModel;
+    [JsonIgnore]
+    private readonly HomeViewModel _homeViewModel;
+    [JsonIgnore]
+    private readonly UserSettings _userSettings;
+    [JsonIgnore]
+    public readonly WorkspaceMetadata workspaceMetadata;
 
     public WorkspaceViewModel(IServiceProvider serviceProvider)
     {
-        _serviceProvider = serviceProvider;
-        _workspaceService = _serviceProvider.GetRequiredService<IWorkspaceService>();
-        homeViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
+        using (var scope = serviceProvider.CreateScope())
+        {
+            _serviceProvider = scope.ServiceProvider;
+            _workspaceService = _serviceProvider.GetRequiredService<IWorkspaceService>();
+            _homeViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
+            _userSettings = _serviceProvider.GetRequiredService<UserSettings>();
+        }
         Name = _workspaceService.GenerateName();
+        workspaceMetadata = new WorkspaceMetadata
+        {
+            Name = Name
+        };
+    }
+
+    public WorkspaceViewModel()
+    {
+        
     }
 
     [ObservableProperty]
+    [JsonProperty]
+
     private string _name;
 
     [ObservableProperty]
-    private ObservableCollection<FileImportFsNoteModel> _fileImportFsNoteModels;
+    [JsonProperty]
+
+    private ObservableCollection<FileImportFsNoteModel> _fileImportFsNoteModels = [];
 
     [ObservableProperty]
-    private FileImportFsNoteModel _selectedFileImport;
+    [JsonIgnore]
+    private FileImportFsNoteModel? _selectedFileImport;
 
     [RelayCommand]
     private void SelectFileImport(FileImportFsNoteModel selected)
     {
     }
     [RelayCommand]
-    private void Start()
+    private async Task Start()
     {
-        MessageBox.Show("Start");
-    }
-
-
-}
-
-public class FileImportFsNoteModel
-{
-    public string Name { get; set; }
-    public string SourcePath { get; set; }
-    public string DestinationPath { get; set; }
-    public string ErrorMessage { get; set; }
-    public string WarningMessage { get; set; }
-    public Dictionary<string, SheetFsNoteModel> FsNoteSheets { get; set; }
-}
-
-
-public class SheetFsNoteModel
-{
-    public static readonly string None = "None";
-    public static class MetaData
-    {
-
-        public static readonly int MetaDataColIndex = 5; // F
-
-        public static readonly int StockRowIndex = 2; // F3
-        public static readonly int ReportTermRowIndex = 3; // F4
-        public static readonly int YearRowIndex = 4; // F5
-        public static readonly int AuditedStatusRowIndex = 5; // F6
-        public static readonly int ReportTypeRowIndex = 6; // F7
-        public static readonly int UnitRowIndex = 9; // F10
-
-        // file pdf url I1
-        public static readonly int FileUrlRowIndex = 0; 
-        public static readonly int FileUrlColIndex = 8;
-    }
-
-    public string SheetName { get; set; }
-    public string StockCode { get; set; }
-    public string ReportTerm { get; set; }
-    public int Year { get; set; }
-    public string AuditedStatus { get; set; }
-    public string ReportType { get; set; }
-    public string Unit { get; set; }
-    public string FileUrl { get; set; }
-    public List<SheetFsNoteDataModel> Data { get; set; }
-    public string ErrorMessage { get; set; }
-
-    public string Information
-    {
-        get
+        try
         {
-            return $"Mã CK: {StockCode ?? None}; Kỳ: {ReportTerm ?? None}; Năm: {Year}; TTKD: {AuditedStatus ?? None}; Loại BC: {ReportType ?? None}; ĐVT: {Unit ?? None}";
+            var result = MessageBox.Show("Bạn có chắc chắn muốn thực hiện tác vụ này?", "Xác nhận", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result == MessageBoxResult.No)
+            {
+                return;
+            }
+            _homeViewModel.IsLoading = true;
+            InitWorkspaceFolder();
+            await Task.Delay(100);
+            await HandleFileImportsAsync();
+
+        }
+        catch (Exception)
+        {
+            MessageBox.Show("Có lỗi xảy ra, vui lòng thử lại sau", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _homeViewModel.IsLoading = false;
         }
     }
+
 }
 
-public class SheetFsNoteDataModel
+
+public partial class WorkspaceViewModel
 {
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public double TotalValue { get; set; }
-    public List<double> Values { get; set; }
-    public bool IsParent { get; set; }
+    #region Methods
+    private void InitWorkspaceFolder()
+    {
+        if (!_workspaceService.InitFolder(Name, out string pathOut))
+        {
+            throw new Exception("Tên thư mục đã tồn tại, vui lòng chọn tên khác");
+        }
+        workspaceMetadata.Path = pathOut;
+    }
+
+    private async Task HandleFileImportsAsync()
+    {
+        /// Lặp qua từng file
+        foreach(var file in FileImportFsNoteModels)
+        {
+            /// Lặp qua từng sheet
+            foreach(var key in file.FsNoteSheets)
+            {
+                try
+                {
+                    _homeViewModel.Status = $"Đang xử lý sheet {key.Key} trong file {file.Name}";
+                    await HandleSheetAsync(key.Value);
+                }
+                catch (Exception)
+                {
+                    _homeViewModel.Status = $"Lỗi xử lý sheet {key.Key} trong file {file.Name}";
+                    await Task.Delay(2000);
+                    continue;
+                }
+            }
+        }
+    }
+
+    private async Task HandleSheetAsync(SheetFsNoteModel sheet)
+    {
+        ArgumentNullException.ThrowIfNullOrEmpty(sheet.FileUrl, "FileUrl is null or empty");
+
+        var sheetMetadata = sheet.Meta = new();
+        var fileName = Path.GetFileName(sheet.FileUrl);
+
+        sheetMetadata.FilePdfFsPath = Path.Combine(workspaceMetadata.PdfDownloadPath, fileName);
+        sheetMetadata.FileOcrV14Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V14.xlsx");
+        sheetMetadata.FileOcrV15Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V15.xlsx");
+
+        using var client = new DownloadFileHttpClient();
+        using var stream = await client.DownloadFileStreamAsync(sheet.FileUrl);
+        
+        using var fileStream = new FileStream(sheetMetadata.FilePdfFsPath, FileMode.Create, FileAccess.Write);
+        await stream.CopyToAsync(fileStream);
+        sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath);
+        {
+            // Đóng stream và filestream để giải phóng cho phép các process ABBYY khác sử dụng file
+            stream.Close();
+            fileStream.Close();
+            stream.Dispose();
+            fileStream.Dispose();
+            client.Dispose();
+        }
+
+        var abbyy14String = new AbbyyCmdString.Builder()
+            .SetAbbyyPath(_userSettings.Abbyy14Path!)
+            .SetInputPath(sheetMetadata.FilePdfFsPath)
+            .SetOutputPath(sheetMetadata.FileOcrV14Path)
+            .SetQuitOnDone(true)
+            .UseVietnameseLanguge()
+            .Build();
+
+        var abbyy15String = new AbbyyCmdString.Builder()
+            .SetAbbyyPath(_userSettings.Abbyy15Path!)
+            .SetInputPath(sheetMetadata.FilePdfFsPath)
+            .SetOutputPath(sheetMetadata.FileOcrV15Path)
+            .SetQuitOnDone(true)
+            .UseVietnameseLanguge()
+            .Build();
+
+        var p14 = new AbbyyCmdManager(abbyy14String).StartAbbyyProcess();
+        var p15 = new AbbyyCmdManager(abbyy15String).StartAbbyyProcess();
+        _homeViewModel.Status = $"Đang OCR file {fileName} (14)(15)";
+
+        var t15 =  p15.WaitForExitAsync();
+        var t14 = p14.WaitForExitAsync();
+
+        await Task.WhenAll(t14, t15);
+
+        sheetMetadata.IsFileOcrV14Created = File.Exists(sheetMetadata.FileOcrV14Path);
+        sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
+
+        try
+        {
+            // json convert and ignore loop
+            dynamic json = new
+            {
+                Name, FileImportFsNoteModels
+            };
+            var jsonStr = JsonConvert.SerializeObject(json, Formatting.Indented, new JsonSerializerSettings
+            {
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+            });
+        }
+        catch (Exception ex)
+        {
+
+            throw;
+        }
+    }
+
+    #endregion
 }

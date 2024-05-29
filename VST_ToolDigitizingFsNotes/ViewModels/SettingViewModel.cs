@@ -78,5 +78,33 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                 FileMappingPath = dialog.FileName;
             }
         }
+
+        [RelayCommand]
+        private void SelectFileAbbyy14Exe()
+        {
+            var dialog = new VistaOpenFileDialog()
+            {
+                Filter = "Exe Files (*.exe)|*.exe",
+
+            };
+            if (dialog.ShowDialog() == true)
+            {
+                Abbyy14Path = dialog.FileName;
+            }
+        }
+
+        [RelayCommand]
+        private void SelectFileAbbyy15Exe()
+        {
+            var dialog = new VistaOpenFileDialog()
+            {
+                Filter = "Exe Files (*.exe)|*.exe",
+
+            };
+            if (dialog.ShowDialog() == true)
+            {
+                Abbyy15Path = dialog.FileName;
+            }
+        }
     }
 }

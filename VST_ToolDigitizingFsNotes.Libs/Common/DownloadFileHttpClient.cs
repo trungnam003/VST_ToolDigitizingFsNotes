@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System.IO;
+using System.Net.Http;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Common
 {
@@ -15,7 +16,14 @@ namespace VST_ToolDigitizingFsNotes.Libs.Common
         {
             request.Headers.Add("User-Agent", _userAgent);
             request.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-            return base.SendAsync(request, cancellationToken);  
+            return base.SendAsync(request, cancellationToken);
+        }
+
+        public async Task<Stream> DownloadFileStreamAsync(string url)
+        {
+            var response = await GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+            return response.Content.ReadAsStream();
         }
 
     }

@@ -3,5 +3,6 @@
     public interface IWorkspaceService
     {
         string GenerateName();
+        bool InitFolder(string workspaceName, out string pathOut);
     }
 }

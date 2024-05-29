@@ -27,5 +27,11 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         {
             NavigateService.NavigateTo<SettingViewModel>();
         }
+
+        [RelayCommand]
+        private void NavigateToTest()
+        {
+            NavigateService.NavigateTo<TestMapDataViewModel>();
+        }
     }
 }

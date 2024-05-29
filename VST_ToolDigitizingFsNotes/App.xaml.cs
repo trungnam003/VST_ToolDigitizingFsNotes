@@ -58,6 +58,8 @@ namespace VST_ToolDigitizingFsNotes.AppMain
                 services.AddSingleton<HomeViewModel>();
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<SettingViewModel>();
+                services.AddSingleton<TestMapDataViewModel>();
+
 
                 services.AddSingleton<IDetectService, DetectService>();
                 services.AddSingleton<IMappingService, MappingService>();

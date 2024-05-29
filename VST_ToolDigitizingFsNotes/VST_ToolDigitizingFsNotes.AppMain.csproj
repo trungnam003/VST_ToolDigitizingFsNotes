@@ -10,6 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Views\vietstock.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\VST_ToolDigitizingFsNotes.Libs\VST_ToolDigitizingFsNotes.Libs.csproj" />
   </ItemGroup>
 
@@ -38,6 +42,10 @@
 
   <ItemGroup>
     <Folder Include="Resources\Xml\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Views\vietstock.png" />
   </ItemGroup>
 
 </Project>

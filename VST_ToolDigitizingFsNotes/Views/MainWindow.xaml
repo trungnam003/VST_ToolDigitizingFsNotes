@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.Views"
         xmlns:vm="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.ViewModels"
         mc:Ignorable="d"
-        Title="Số hóa TM BCTC" Height="720" Width="1280" d:DataContext="{d:DesignInstance  Type=vm:MainViewModel}">
+        Title="Số hóa TM BCTC" Height="720" Width="1280" d:DataContext="{d:DesignInstance  Type=vm:MainViewModel}" Icon="/Views/vietstock.png">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"></RowDefinition>
@@ -15,8 +15,9 @@
 
         <Menu Grid.Row="0" Padding="0 2">
             <MenuItem Padding="12 0" Header="View">
-                <MenuItem Header="Home" Command="{Binding Path=NavigateToHomeCommand}"></MenuItem>
-                <MenuItem Header="Settings" Command="{Binding Path=NavigateToSettingsCommand}"></MenuItem>
+                <MenuItem Header="Trang chính" Command="{Binding Path=NavigateToHomeCommand}"></MenuItem>
+                <MenuItem Header="Cài đặt" Command="{Binding Path=NavigateToSettingsCommand}"></MenuItem>
+                <MenuItem Header="Chạy thử" Command="{Binding Path=NavigateToTestCommand}"></MenuItem>
             </MenuItem>
         </Menu>
 

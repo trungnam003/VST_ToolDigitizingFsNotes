@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using VST_ToolDigitizingFsNotes.Libs.Models;
 
 namespace VST_ToolDigitizingFsNotes.ConsoleApp
 {
@@ -43,14 +42,14 @@ namespace VST_ToolDigitizingFsNotes.ConsoleApp
             // calulate time
             var watch = new Stopwatch();
             watch.Start();
-            double[] arr = { 
+            double[] arr = {
                 19802696762, 65684029692, 331828286952, 23992425272, 62183211463, 330672898968
             };
             Console.WriteLine(arr.Length);
             TimeSpan timeout = TimeSpan.FromSeconds(5);
             var cancellationTokenSource = new CancellationTokenSource(timeout);
             double sum = 417315013406;
-            List<List<double>> results = Solution.FindAllSubsetSums(arr, sum, x=>x, cancellationTokenSource.Token);
+            List<List<double>> results = Solution.FindAllSubsetSums(arr, sum, x => x, cancellationTokenSource.Token);
 
             watch.Stop();
             Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds} ms");

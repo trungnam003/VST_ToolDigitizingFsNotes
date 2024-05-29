@@ -12,5 +12,8 @@
         <DataTemplate DataType="{x:Type TypeName=vm:SettingViewModel}">
             <view:SettingView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type TypeName=vm:TestMapDataViewModel}">
+            <view:TestMapDataView/>
+        </DataTemplate>
     </Application.Resources>
 </Application>
