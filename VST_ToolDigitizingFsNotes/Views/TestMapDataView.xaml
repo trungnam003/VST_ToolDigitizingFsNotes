@@ -3,16 +3,39 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.Views"
+             xmlns:vm="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:TestMapDataViewModel }"
              mc:Ignorable="d" 
              Background="WhiteSmoke"    
              d:DesignHeight="720" d:DesignWidth="1280">
     <Grid>
-        <TextBox HorizontalAlignment="Left" Margin="20,21,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="458"/>
-        <TextBox HorizontalAlignment="Left" Margin="20,62,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="458"/>
-        <TextBox HorizontalAlignment="Left" Margin="20,102,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="458"/>
-        <Button Content="Button" HorizontalAlignment="Left" Margin="483,62,0,0" VerticalAlignment="Top"/>
-        <Button Content="Button" HorizontalAlignment="Left" Margin="483,102,0,0" VerticalAlignment="Top"/>
-        <Button Content="Button" HorizontalAlignment="Left" Margin="483,21,0,0" VerticalAlignment="Top"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Background="Navy" Margin="6">
+                <StackPanel Margin="5" Orientation="Horizontal">
+                    <TextBox Width="400" Margin="5 0" Text="{Binding FileInputPath}" IsEnabled="False"></TextBox>
+                    <Button Content="Chọn file đầu vào" Width="120" Command="{Binding SelectFileInputCommand}"></Button>
+                </StackPanel>
+                <StackPanel Margin="5" Orientation="Horizontal">
+                    <TextBox Width="400" Margin="5 0" Text="{Binding FileOcr14Path}" IsEnabled="False"></TextBox>
+                    <Button Content="Chọn file ocr 14" Width="120" Command="{Binding SelectFileOcr14Command}"></Button>
+                </StackPanel>
+                <StackPanel Margin="5" Orientation="Horizontal">
+                    <TextBox Width="400" Margin="5 0" Text="{Binding FileOcr15Path}" IsEnabled="False"></TextBox>
+                    <Button Content="Chọn file ocr 15" Width="120" Command="{Binding SelectFileOcr15Command}"></Button>
+                </StackPanel>
+                <Button Width="120" Cursor="Hand" Margin="5" Command="{Binding RunCommand}">Chạy</Button>
+            </StackPanel>
+        </Grid>
+        
     </Grid>
 </UserControl>

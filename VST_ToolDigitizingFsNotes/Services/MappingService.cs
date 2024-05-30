@@ -61,7 +61,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         {
             await using var fs = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
 
-            var workbook = await Task.Run(() => new XSSFWorkbook(fs));
+            using var workbook = await Task.Run(() => new XSSFWorkbook(fs));
 
             var sheet = workbook.GetSheetAt(0) ?? throw new ArgumentNullException("Sheet is null");
 
@@ -121,6 +121,9 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                     parent.Children[parent.TotalGroup].Add(child);
                 }
             }
+
+            fs.Close();
+            workbook.Close();
         }
     }
 }

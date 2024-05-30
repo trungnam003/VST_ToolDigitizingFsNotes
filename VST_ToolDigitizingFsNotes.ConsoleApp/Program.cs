@@ -43,12 +43,12 @@ namespace VST_ToolDigitizingFsNotes.ConsoleApp
             var watch = new Stopwatch();
             watch.Start();
             double[] arr = {
-                19802696762, 65684029692, 331828286952, 23992425272, 62183211463, 330672898968
+                1_789_473_698, 1_789_473_698, 1_789_473_698, 2_526_315_786, 2_526_315_786
             };
             Console.WriteLine(arr.Length);
             TimeSpan timeout = TimeSpan.FromSeconds(5);
             var cancellationTokenSource = new CancellationTokenSource(timeout);
-            double sum = 417315013406;
+            double sum = 4_315_789_484;
             List<List<double>> results = Solution.FindAllSubsetSums(arr, sum, x => x, cancellationTokenSource.Token);
 
             watch.Stop();

@@ -9,11 +9,9 @@ namespace VST_ToolDigitizingFsNotes.Libs.Handlers
     public class DetectDataRequest : IRequest<bool>
     {
         public UnitOfWorkModel UnitOfWork { get; }
-        public string FilePath { get; }
-        public DetectDataRequest(string filePath, ref UnitOfWorkModel unitOfWork)
+        public DetectDataRequest(ref UnitOfWorkModel unitOfWork)
         {
             UnitOfWork = unitOfWork;
-            FilePath = filePath;
         }
     }
 
@@ -25,18 +23,15 @@ namespace VST_ToolDigitizingFsNotes.Libs.Handlers
             _detectService = detectService;
         }
 
-        public async Task<bool> Handle(DetectDataRequest request, CancellationToken cancellationToken)
+        public Task<bool> Handle(DetectDataRequest request, CancellationToken cancellationToken)
         {
             try
             {
-                var fullPath = request.FilePath;
                 var unitOfWork = request.UnitOfWork;
                 var moneys = unitOfWork.MoneyCellModels;
                 var headings = unitOfWork.HeadingCellModels;
-                // read xlsx file using NPOI
-                await using var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-                var workbook = await Task.Run(() => new XSSFWorkbook(fs));
-
+                var workbook = unitOfWork.OcrWorkbook;
+                ArgumentNullException.ThrowIfNull(workbook, nameof(workbook));
                 var sheet = workbook.GetSheetAt(0);
                 for (int i = 0; i <= sheet.LastRowNum; i++)
                 {
@@ -55,7 +50,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Handlers
                         _detectService.DetectHeadings(cellValue, cell, ref headings);
                     }
                 }
-                return true;
+                return Task.FromResult(true);
             }
             catch (Exception)
             {

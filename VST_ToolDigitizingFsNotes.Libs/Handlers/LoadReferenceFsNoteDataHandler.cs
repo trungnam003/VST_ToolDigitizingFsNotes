@@ -12,13 +12,13 @@ namespace VST_ToolDigitizingFsNotes.Libs.Handlers
 
     public class LoadReferenceFsNoteDataRequest : IRequest<bool>
     {
-        public string FilePath { get; }
+        public HSSFWorkbook InputWorkbook { get; }
         public UnitOfWorkModel UnitOfWork { get; }
         public string SheetName { get; }
 
-        public LoadReferenceFsNoteDataRequest(string filePath, string sheetName, ref UnitOfWorkModel unitOfWork)
+        public LoadReferenceFsNoteDataRequest(HSSFWorkbook inputWorkbook, string sheetName, ref UnitOfWorkModel unitOfWork)
         {
-            FilePath = filePath;
+            InputWorkbook = inputWorkbook;
             UnitOfWork = unitOfWork;
             SheetName = sheetName;
         }
@@ -30,30 +30,27 @@ namespace VST_ToolDigitizingFsNotes.Libs.Handlers
         {
         }
 
-        public async Task<bool> Handle(LoadReferenceFsNoteDataRequest request, CancellationToken cancellationToken)
+        public Task<bool> Handle(LoadReferenceFsNoteDataRequest request, CancellationToken cancellationToken)
         {
             try
             {
-                var fullPath = request.FilePath;
                 var sheetName = request.SheetName;
                 var unitOfWork = request.UnitOfWork;
-                await using var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-                var workbook = await Task.Run(() => new HSSFWorkbook(fs));
+                var workbook = request.InputWorkbook;
                 var list = LoadDataFromSheetName(workbook, sheetName);
                 foreach (var item in list)
                 {
                     unitOfWork.FsNoteParentModels.Add(item);
-                    Debug.WriteLine($"{item.FsNoteId} - {item.Name} - {item.Value} - {item.ParentId} - {item.IsParent} - {item.Group}");
-                    foreach (var child in item.Children)
-                    {
-                        Debug.WriteLine($"\t{child.FsNoteId} - {child.Name} - {child.Value} - {child.Group}");
-                    }
+                    //Debug.WriteLine($"{item.FsNoteId} - {item.Name} - {item.Value} - {item.ParentId} - {item.IsParent} - {item.Group}");
+                    //foreach (var child in item.Children)
+                    //{
+                    //    Debug.WriteLine($"\t{child.FsNoteId} - {child.Name} - {child.Value} - {child.Group}");
+                    //}
                 }
-                return true;
+                return Task.FromResult(true);
             }
             catch (Exception)
             {
-
                 throw;
             }
         }

@@ -68,49 +68,48 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         [RelayCommand(CanExecute = nameof(IsNoBlock))]
         private async Task Test()
         {
-            var moneys = _unitOfWork.MoneyCellModels;
-            var headings = _unitOfWork.HeadingCellModels;
-            try
-            {
-                var fileName = "VSM_Baocaotaichinh_Q3_2022_Hopnhat_14_2.xlsx";
-                var fullPath = Path.Combine(Properties.Settings.Default.WorkspaceFolderPath, fileName);
-                IsLoading = true;
+            //var moneys = _unitOfWork.MoneyCellModels;
+            //var headings = _unitOfWork.HeadingCellModels;
+            //try
+            //{
+            //    var fileName = "VSM_Baocaotaichinh_Q3_2022_Hopnhat_14_2.xlsx";
+            //    var fullPath = Path.Combine(Properties.Settings.Default.WorkspaceFolderPath, fileName);
+            //    IsLoading = true;
 
-                var request = new DetectDataRequest(fullPath, ref _unitOfWork);
-                var t1 = _mediator.Send(request);
+            //    var request = new DetectDataRequest(fullPath, ref _unitOfWork);
+            //    var t1 = _mediator.Send(request);
 
-                var fileName2 = "1_NHAP_TM_CTCP_1321_VSM_VSM_VTB_VTB.xls";
-                var fullPath2 = Path.Combine(Properties.Settings.Default.WorkspaceFolderPath, fileName2);
+            //    var fileName2 = "1_NHAP_TM_CTCP_1321_VSM_VSM_VTB_VTB.xls";
+            //    var fullPath2 = Path.Combine(Properties.Settings.Default.WorkspaceFolderPath, fileName2);
 
-                var request2 = new LoadReferenceFsNoteDataRequest(fullPath2, "TM1", ref _unitOfWork);
-                var t2 = _mediator.Send(request2);
+            //    var request2 = new LoadReferenceFsNoteDataRequest(fullPath2, "TM1", ref _unitOfWork);
+            //    var t2 = _mediator.Send(request2);
 
-                await Task.WhenAll(t1, t2);
-                await t1;
-                await t2;
+            //    await Task.WhenAll(t1, t2);
+            //    await t1;
+            //    await t2;
 
-                await LoadMapping();
+            //    await LoadMapping();
 
-                //print to debug money and heading list
-                Debug.WriteLine($"{string.Join("\n", moneys)}");
-                Debug.WriteLine("\n\n");
-                Debug.WriteLine($"{string.Join("\n", headings)}");
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-            finally
-            {
-                IsLoading = false;
-            }
+            //    //print to debug money and heading list
+            //    Debug.WriteLine($"{string.Join("\n", moneys)}");
+            //    Debug.WriteLine("\n\n");
+            //    Debug.WriteLine($"{string.Join("\n", headings)}");
+            //}
+            //catch (Exception)
+            //{
+            //    throw;
+            //}
+            //finally
+            //{
+            //    IsLoading = false;
+            //}
         }
 
 
         [RelayCommand(CanExecute = nameof(IsNoBlock))]
         private async Task SelectFiles()
         {
-
             try
             {
                 var dialog = new VistaOpenFileDialog

@@ -12,6 +12,6 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Views
             InitializeComponent();
         }
 
-        
+
     }
 }

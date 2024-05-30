@@ -1,4 +1,5 @@
 ﻿using NPOI.HSSF.UserModel;
+using NPOI.XSSF.UserModel;
 using System.Diagnostics;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Models
@@ -7,35 +8,39 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     /// Class đại diện cho một đơn vị làm việc với 1 file bctc trên 1 luồng
     /// Lưu trữ dữ liệu tiền, heading, heading group ... sau giai đoạn tiền xử lý hoàn tất
     /// </summary>
-    public class UnitOfWorkModel
+    public sealed class UnitOfWorkModel : IDisposable
     {
         public object lockObject = new();
         public List<HeadingCellModel> HeadingCellModels { get; }
         public List<MoneyCellModel> MoneyCellModels { get; }
         public List<FsNoteParentModel> FsNoteParentModels { get; }
-        public HSSFWorkbook? Workbook { get; set; }
+        public XSSFWorkbook? OcrWorkbook { get; init; }
 
-        public UnitOfWorkModel
-            (
-            //List<HeadingCellModel> headingCellModels,
-            //List<MoneyCellModel> moneyCellModels,
-            //List<FsNoteParentModel> fsNoteParentModels
-            )
+        private bool _disposed;
+
+        public UnitOfWorkModel()
         {
             HeadingCellModels = [];
             MoneyCellModels = [];
             FsNoteParentModels = [];
         }
 
-        public void PrintHeadingGroup()
+        private void Dispose(bool disposing)
         {
-            foreach (var headingCellModel in HeadingCellModels)
+            if (!_disposed)
             {
-                foreach (var headingGroup in headingCellModel.MetaData.BackData)
+                if (disposing)
                 {
-                    Debug.WriteLine($"{headingCellModel.Row}:{headingCellModel.Col} - {headingCellModel.CellValue} - {headingGroup}");
+                    using (OcrWorkbook) OcrWorkbook?.Close();
                 }
+                _disposed = true;
             }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }

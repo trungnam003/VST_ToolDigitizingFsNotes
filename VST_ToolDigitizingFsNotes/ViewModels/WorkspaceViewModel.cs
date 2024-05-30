@@ -42,7 +42,7 @@ public partial class WorkspaceViewModel : ObservableObject
 
     public WorkspaceViewModel()
     {
-        
+
     }
 
     [ObservableProperty]
@@ -107,10 +107,10 @@ public partial class WorkspaceViewModel
     private async Task HandleFileImportsAsync()
     {
         /// Lặp qua từng file
-        foreach(var file in FileImportFsNoteModels)
+        foreach (var file in FileImportFsNoteModels)
         {
             /// Lặp qua từng sheet
-            foreach(var key in file.FsNoteSheets)
+            foreach (var key in file.FsNoteSheets)
             {
                 try
                 {
@@ -140,12 +140,12 @@ public partial class WorkspaceViewModel
 
         using var client = new DownloadFileHttpClient();
         using var stream = await client.DownloadFileStreamAsync(sheet.FileUrl);
-        
+
         using var fileStream = new FileStream(sheetMetadata.FilePdfFsPath, FileMode.Create, FileAccess.Write);
         await stream.CopyToAsync(fileStream);
         sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath);
         {
-            // Đóng stream và filestream để giải phóng cho phép các process ABBYY khác sử dụng file
+            /// Đóng stream và filestream để giải phóng cho phép các process ABBYY sử dụng file
             stream.Close();
             fileStream.Close();
             stream.Dispose();
@@ -173,7 +173,7 @@ public partial class WorkspaceViewModel
         var p15 = new AbbyyCmdManager(abbyy15String).StartAbbyyProcess();
         _homeViewModel.Status = $"Đang OCR file {fileName} (14)(15)";
 
-        var t15 =  p15.WaitForExitAsync();
+        var t15 = p15.WaitForExitAsync();
         var t14 = p14.WaitForExitAsync();
 
         await Task.WhenAll(t14, t15);
@@ -186,7 +186,8 @@ public partial class WorkspaceViewModel
             // json convert and ignore loop
             dynamic json = new
             {
-                Name, FileImportFsNoteModels
+                Name,
+                FileImportFsNoteModels
             };
             var jsonStr = JsonConvert.SerializeObject(json, Formatting.Indented, new JsonSerializerSettings
             {
@@ -195,7 +196,6 @@ public partial class WorkspaceViewModel
         }
         catch (Exception ex)
         {
-
             throw;
         }
     }
