@@ -52,7 +52,8 @@ public static partial class DetectUtils
     /// Kết thúc 1 heading là ký tự xuống dòng hoặc kết thúc chuỗi
     /// </summary>
     /// <returns></returns>
-    [GeneratedRegex(@"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d+){0,3}\.)|(?<h_roman>(?:X{0,3})(?:IX|IV|V?I{0,3})\.)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.*?)(?=\n|$)")]
+    //[GeneratedRegex(@"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d+){0,3}\.?)|(?<h_roman>(?:X{0,3})(?:IX|IV|V?I{0,3})\.)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.*?)(?=\n|$)")]
+    [GeneratedRegex(@"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d{1,2}){0,3}\.?)|(?<h_roman>(?=.)(?:(?:X{0,3})(?:IX|IV|V?I{0,3}))\.?)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.{1,80}?)(?=\n|$)")]
     public static partial Regex HeadingRegex003();
 
     /// <summary>

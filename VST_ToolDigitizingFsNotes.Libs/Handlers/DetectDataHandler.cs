@@ -44,7 +44,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Handlers
                         var cell = row.GetCell(j);
                         if (cell == null) continue;
 
-                        var cellValue = cell.ToString();
+                        var cellValue = cell.ToString()?.Trim() ?? string.Empty;
                         if (string.IsNullOrEmpty(cellValue)) continue;
                         _detectService.DetectMoneys(cellValue, cell, ref moneys);
                         _detectService.DetectHeadings(cellValue, cell, ref headings);

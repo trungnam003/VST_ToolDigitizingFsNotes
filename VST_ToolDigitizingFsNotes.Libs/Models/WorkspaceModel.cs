@@ -73,9 +73,9 @@
             public static readonly int ReportTypeRowIndex = 6; // F7
             public static readonly int UnitRowIndex = 9; // F10
 
-            // file pdf url I1
+            // file pdf url F1
             public static readonly int FileUrlRowIndex = 0;
-            public static readonly int FileUrlColIndex = 8;
+            public static readonly int FileUrlColIndex = 5;
 
             public string? FilePdfFsPath { get; set; }
             public string? FileOcrV14Path { get; set; }
