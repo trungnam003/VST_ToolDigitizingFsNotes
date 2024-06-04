@@ -112,7 +112,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
                 return;
             }
             var negative = cell.CellValue.StartsWith("(") && cell.CellValue.EndsWith(")") ? -1 : 1;
-            var rawMoney = cell.CellValue.Replace(",", string.Empty).Replace(".", string.Empty);
+            var rawMoney = cell.CellValue.Replace(",", string.Empty).Replace(".", string.Empty).Replace(" ", string.Empty);
             rawMoney = rawMoney.Trim('(', ')');
             if (double.TryParse(rawMoney, out var money))
             {

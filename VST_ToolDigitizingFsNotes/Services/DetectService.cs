@@ -1,4 +1,5 @@
-﻿using NPOI.SS.UserModel;
+﻿using Force.DeepCloner;
+using NPOI.SS.UserModel;
 using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
@@ -94,30 +95,24 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         /// <param name="moneys"></param>
         /// <param name="uow"></param>
         /// <param name="parent"></param>
-        private RangeDetectFsNote? ProcessingDeterminesTheMostSuitableRange(List<MoneyCellModel> moneys, UnitOfWorkModel uow, FsNoteParentModel parent)
+        private List<RangeDetectFsNote> ProcessingDeterminesTheMostSuitableRange(List<MoneyCellModel> moneys, UnitOfWorkModel uow, FsNoteParentModel parent)
         {
-            /// Vì nếu cột của dòng trong excel < 2 thì không thể chưa đủ số liệu
-            const int MinimalAllowColumn = 2;
+            var rs = new List<RangeDetectFsNote>();
             const double AcceptableSimilarity = 0.6868;
             _mapping.TryGetValue(parent.FsNoteId, out var mapParentData);
             // tạm thời bỏ qua các chỉ tiêu bị disable
             if (mapParentData == null || mapParentData.IsDisabled)
             {
-                return null;
+                return rs;
             }
-
             moneys.Reverse(); // số cuối cùng thường là số của chỉ tiêu
-
             foreach (var money in moneys)
             {
                 var col = money.Col;
                 var row = money.Row;
                 var cell = uow.OcrWorkbook?.GetSheetAt(0).GetRow(row).GetCell(col);
                 var lastCellNum = cell?.Row.PhysicalNumberOfCells ?? 0;
-                //if (lastCellNum < MinimalAllowColumn)
-                //{
-                //    continue;
-                //}
+               
                 // tìm kiếm heading gần nhất, độ ưu tiên là khoảng cách tăng dần
                 var queue = FindNearestHeading(money, uow);
                 if(queue.Count == 0)
@@ -155,18 +150,18 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                         {
                             Row = row,
                             Col = lastCellNum
-                        }
+                        },
+                        MoneyCellModel = money
                     };
-                    return range;
-                    //break;
+                   rs.Add(range);
                 }
             }
-            return null;
+            return rs;
         }
 
         private static PriorityQueue<HeadingCellModel, double> FindNearestHeading(MoneyCellModel money, UnitOfWorkModel uow)
         {
-            const int MaximumAllowRowRange = 30;
+            const int MaximumAllowRowRange = 60;
             // độ ưu tiên tăng dần
             var results = new PriorityQueue<HeadingCellModel, double>(Comparer<double>.Create((x, y) => x.CompareTo(y)));
 
@@ -190,15 +185,44 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         }
 
         /// <summary>
+        /// Map dữ liệu đã khoanh vùng với tiền
+        /// </summary>
+        /// <param name="uow"></param>
+        /// <param name="ranges"></param>
+        /// <param name="parent"></param>
+        private void MapFsNoteChildWithMoney(UnitOfWorkModel uow, List<FsNoteDataMap> maps)
+        {
+            foreach(var dataMap in maps)
+            {
+                var lastRange = dataMap.rangeDetectFsNotes?.FirstOrDefault();
+                var parent = uow.FsNoteParentModels.FirstOrDefault(x => x.FsNoteId == dataMap.FsNoteId && x.Group == dataMap.Group);
+                if (lastRange == null)
+                {
+                    continue;
+                }
+                var moneysInRange = uow.MoneyCellModels
+                    .Where(money => (money.Row >= lastRange.Start.Row && money.Row <= lastRange.End.Row))
+                    .ToList();
+                var moneys = DetectUtils.FindAllSubsetSums(moneysInRange, (parent.Value), x => (x.Value));
+            }
+        }
+
+        /// <summary>
         /// Gom nhóm dữ liệu tiền, đánh giá và sắp xếp khu vực phù hợp nhất
         /// </summary>
         /// <param name="uow"></param>
         public void GroupFsNoteDataRange(UnitOfWorkModel uow)
         {
-            var lst = new List<RangeDetectFsNote>();
+            var lst = new List<FsNoteDataMap>();
             foreach (var parent in uow.FsNoteParentModels)
             {
                 var d2 = parent.Value;
+                var fsNoteDataMap = new FsNoteDataMap
+                {
+                    FsNoteId = parent.FsNoteId,
+                    Group = parent.Group,
+                    FsNoteParentModel = parent
+                };
                 /// Tạm thời tìm kiếm dùng giá trị tuyệt đối để tìm kiếm số tiền, nếu có lỗi thì sẽ sửa lại
                 List<MoneyCellModel> moneys = uow.MoneyCellModels
                     .Where(money => Math.Abs(money.Value) == Math.Abs(parent.Value))
@@ -206,59 +230,27 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 var rs = ProcessingDeterminesTheMostSuitableRange(moneys, uow, parent);
                 if (rs != null)
                 {
-                    lst.Add(rs);
+                    fsNoteDataMap.rangeDetectFsNotes = rs;
                 }
+                lst.Add(fsNoteDataMap);
             }
-            var a = uow.FsNoteParentModels.Where(x => x.Value !=0).ToList();
-            var d = lst;
 
-            var rate = $"{d.Count}/{a.Count} => { ((double)(d.Count / a.Count) * 100).ToString() }";
-            var ddd = rate;
-            //uow.FsNoteParentModels.ForEach(parent =>
-            //{
-            //    List<(MoneyCellModel, HeadingCellModel?)> test = new();
-            //    var moneys = uow.MoneyCellModels.Where(money => money.Value == parent.Value).ToList();
-            //    // loop in uow.HeadingCellModels to find nearest heading with money address
-            //    moneys.ForEach(money =>
-            //    {
-            //        var row = money.Row;
-            //        var col = money.Col;
-            //        double minDistance = double.MaxValue;
-            //        HeadingCellModel? nearestHeading = null;
+            MapFsNoteChildWithMoney(uow, lst);
+            //var a = uow.FsNoteParentModels.Where(x => x.Value !=0).ToList();
+            //var d = lst;
 
-            //        uow.HeadingCellModels.ForEach(heading =>
-            //        {
-            //            if (row < heading.Row)
-            //            {
-            //                return;
-            //            }
-            //            var distance = CoreUtils.EuclideanDistance(row, col, heading.Row, heading.Col);
-            //            if (distance < minDistance)
-            //            {
-            //                minDistance = distance;
-            //                nearestHeading = heading;
-            //            }
-            //        });
-            //        test.Add((money, nearestHeading));
-            //    });
-            //    int maxIndex = int.MinValue;
-            //    (MoneyCellModel, HeadingCellModel?)? moneySelected = null;
-
-            //    foreach (var (money, heading) in test)
-            //    {
-            //        var moneyRow = money.Row;
-            //        var moneyCol = money.Col;
-            //        var matrixIndex = moneyRow + moneyCol;
-            //        if (matrixIndex > maxIndex)
-            //        {
-            //            maxIndex = matrixIndex;
-            //            moneySelected = (money, heading);
-            //        }
-            //    }
-            //    var d = moneySelected;
-            //});
+            //var rate = $"{d.Count}/{a.Count} => { ((double)(d.Count / a.Count) * 100).ToString() }";
+            //var ddd = rate;
         }
     }
+}
+
+public class FsNoteDataMap
+{
+    public int FsNoteId { get; set; }
+    public int Group { get; set; }
+    public List<RangeDetectFsNote>? rangeDetectFsNotes { get; set; }
+    public required FsNoteParentModel FsNoteParentModel { get; set; }
 }
 
 public class RangeDetectFsNote
@@ -266,8 +258,7 @@ public class RangeDetectFsNote
     public required MatrixCellModel Start { get; set; }
     public required MatrixCellModel End { get; set; }
 
-    public List<MoneyCellModel> MoneyInRange { get; set; } = [];
-    public List<MatrixCellModel> TextCellInRange { get; set; } = [];
+    public required MoneyCellModel MoneyCellModel { get; set; }
 
     public override string ToString()
     {

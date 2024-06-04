@@ -14,7 +14,7 @@ public static partial class DetectUtils
     /// Regex phát hiện số tiền trong 1 chuỗi
     /// </summary>
     /// <returns></returns>
-    [GeneratedRegex(@"(?<pos>\b(?:\d{1,3}(?:[.,]\d{3}){1,5})\b)|(?<neg>\(\b(?:\d{1,3}(?:[.,]\d{3}){1,5})\b\))")]
+    [GeneratedRegex(@"(?<pos>\b(?:\d{1,3}(?:[., ]\d{3}){1,5})\b)|(?<neg>\(\b(?:\d{1,3}(?:[., ]\d{3}){1,5})\b\))")]
     public static partial Regex MoneyRegex001();
 
     [Obsolete("Không sử dụng nữa")]
@@ -53,7 +53,7 @@ public static partial class DetectUtils
     /// </summary>
     /// <returns></returns>
     //[GeneratedRegex(@"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d+){0,3}\.?)|(?<h_roman>(?:X{0,3})(?:IX|IV|V?I{0,3})\.)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.*?)(?=\n|$)")]
-    [GeneratedRegex(@"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d{1,2}){0,3}\.?)|(?<h_roman>(?=.)(?:(?:X{0,3})(?:IX|IV|V?I{0,3}))\.?)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.{1,80}?)(?=\n|$)")]
+    [GeneratedRegex(@"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d{1,2}){0,3}\.?)|(?<h_roman>(?=.)(?:(?:X{0,3})(?:IX|IV|V?I{0,3}))\.?)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.{1,222}?)(?=\n|$)")]
     public static partial Regex HeadingRegex003();
 
     /// <summary>
@@ -67,6 +67,40 @@ public static partial class DetectUtils
     public static partial Regex HeadingGroupRegex();
 
     #endregion
+}
+
+public partial class DetectUtils
+{
+    public static List<List<T>> FindAllSubsetSums<T>(IList<T> arr, double sum, Func<T, double> valueSelector, CancellationToken cancellationToken = default)
+    {
+        List<List<T>> result = [];
+        List<T> current = [];
+        FindSubsets(arr, sum, 0, current, result, valueSelector, cancellationToken);
+        return result;
+    }
+
+    static void FindSubsets<T>(IList<T> arr, double sum, int index, List<T> current, List<List<T>> result, Func<T, double> valueSelector, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (sum == 0)
+        {
+            result.Add(new List<T>(current));
+            return;
+        }
+
+        if (index == arr.Count)
+        {
+            return;
+        }
+
+        // Bao gồm phần tử hiện tại
+        current.Add(arr[index]);
+        FindSubsets(arr, sum - valueSelector(arr[index]), index + 1, current, result, valueSelector, cancellationToken);
+        current.RemoveAt(current.Count - 1);
+
+        // Bỏ qua phần tử hiện tại
+        FindSubsets(arr, sum, index + 1, current, result, valueSelector, cancellationToken);
+    }
 }
 
 //[GeneratedRegex(@"^((?:\d+(?:\.\d+)?\.\ )|(?:[IVX]+\.\ )|(?:[a-zA-Z]\.\ ))(.*?)(?=\n|$)")]
