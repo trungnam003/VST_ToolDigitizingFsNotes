@@ -1,6 +1,7 @@
 ﻿using Force.DeepCloner;
 using NPOI.SS.UserModel;
 using System.Text.RegularExpressions;
+using VST_ToolDigitizingFsNotes.Libs.Chains;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
@@ -98,7 +99,6 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         private List<RangeDetectFsNote> ProcessingDeterminesTheMostSuitableRange(List<MoneyCellModel> moneys, UnitOfWorkModel uow, FsNoteParentModel parent)
         {
             var rs = new List<RangeDetectFsNote>();
-            const double AcceptableSimilarity = 0.6868;
             _mapping.TryGetValue(parent.FsNoteId, out var mapParentData);
             // tạm thời bỏ qua các chỉ tiêu bị disable
             if (mapParentData == null || mapParentData.IsDisabled)
@@ -108,80 +108,21 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             moneys.Reverse(); // số cuối cùng thường là số của chỉ tiêu
             foreach (var money in moneys)
             {
-                var col = money.Col;
-                var row = money.Row;
-                var cell = uow.OcrWorkbook?.GetSheetAt(0).GetRow(row).GetCell(col);
-                var lastCellNum = cell?.Row.PhysicalNumberOfCells ?? 0;
+                DetectChainRequest req = new(uow, parent, money);
+                var handler1 = new DetectUsingHeadingHandler(mapParentData);
+                var handler2 = new DetectUsingSimilartyStringHanlder(mapParentData);
+                handler1.SetNext(handler2);
+                handler1.Handle(req);
+
+                var isSuccess = req.Handled;
+                var result = req.Result;
                
-                // tìm kiếm heading gần nhất, độ ưu tiên là khoảng cách tăng dần
-                var queue = FindNearestHeading(money, uow);
-                if(queue.Count == 0)
+                if (result != null && isSuccess)
                 {
-                    continue;
-                }
-                var maxSimilarity = double.MinValue;
-                HeadingCellModel? nearestHeading = null;
-                // duyệt hàng đợi và so sánh độ tương đồng với từ khóa
-                while (queue.Count > 0)
-                {
-                    var heading = queue.Dequeue();
-                    foreach (var keyword in mapParentData.Keywords)
-                    {
-                        var similarity = StringSimilarityUtils.CalculateSimilarity(heading?.ContentSection!, keyword);
-                        if (similarity > maxSimilarity)
-                        {
-                            maxSimilarity = similarity;
-                        }
-                    }
-                    // nếu độ tương đồng lớn hơn ngưỡng chấp nhận thì dừng lại
-                    if (maxSimilarity >= AcceptableSimilarity)
-                    {
-                        nearestHeading = heading;
-                        break;
-                    }
-                }
-                var d = maxSimilarity;
-                if (nearestHeading != null)
-                {
-                    var range = new RangeDetectFsNote
-                    {
-                        Start = nearestHeading,
-                        End = new MatrixCellModel
-                        {
-                            Row = row,
-                            Col = lastCellNum
-                        },
-                        MoneyCellModel = money
-                    };
-                   rs.Add(range);
+                   rs.Add(result);
                 }
             }
             return rs;
-        }
-
-        private static PriorityQueue<HeadingCellModel, double> FindNearestHeading(MoneyCellModel money, UnitOfWorkModel uow)
-        {
-            const int MaximumAllowRowRange = 60;
-            // độ ưu tiên tăng dần
-            var results = new PriorityQueue<HeadingCellModel, double>(Comparer<double>.Create((x, y) => x.CompareTo(y)));
-
-            var row = money.Row;
-            var col = money.Col;
-
-            foreach (var heading in uow.HeadingCellModels)
-            {
-                if (row < heading.Row)
-                {
-                    break;
-                }
-                if (row - heading.Row > MaximumAllowRowRange)
-                {
-                    continue;
-                }
-                var distance = CoreUtils.EuclideanDistance(row, col, heading.Row, heading.Col);
-                results.Enqueue(heading, distance);
-            }
-            return results;
         }
 
         /// <summary>
@@ -200,10 +141,25 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 {
                     continue;
                 }
+
+                var moneyCellTarget = lastRange.MoneyCellModel;
+                // get money in range with out target money
+
                 var moneysInRange = uow.MoneyCellModels
-                    .Where(money => (money.Row >= lastRange.Start.Row && money.Row <= lastRange.End.Row))
+                    .Where(x => x.Row >= lastRange.Start.Row && x.Row <= lastRange.End.Row)
+                    .Where(x => !(x.Row == moneyCellTarget.Row && x.Col == moneyCellTarget.Col))
                     .ToList();
-                var moneys = DetectUtils.FindAllSubsetSums(moneysInRange, (parent.Value), x => (x.Value));
+
+                // group moneys by row
+                var groupByRow = moneysInRange.GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
+                // group moneys by col
+                var groupByCol = moneysInRange.GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
+
+                groupByCol.TryGetValue(moneyCellTarget.Col, out var moneysCol);
+                groupByRow.TryGetValue(moneyCellTarget.Row, out var moneysRow);
+                // phải vét hết chứ không cộng tổng vì có nhiều bctc chưa chỉ tiêu con mô tả không liên quan
+                var moneys1 = DetectUtils.FindAllSubsetSums(moneysRow ?? [], Math.Abs(parent!.Value), x => (x.Value));
+                var moneys2 = DetectUtils.FindAllSubsetSums(moneysCol ?? [], Math.Abs(parent!.Value), x => (x.Value));
             }
         }
 
@@ -245,23 +201,3 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
     }
 }
 
-public class FsNoteDataMap
-{
-    public int FsNoteId { get; set; }
-    public int Group { get; set; }
-    public List<RangeDetectFsNote>? rangeDetectFsNotes { get; set; }
-    public required FsNoteParentModel FsNoteParentModel { get; set; }
-}
-
-public class RangeDetectFsNote
-{
-    public required MatrixCellModel Start { get; set; }
-    public required MatrixCellModel End { get; set; }
-
-    public required MoneyCellModel MoneyCellModel { get; set; }
-
-    public override string ToString()
-    {
-        return Start.CellValue ?? "";
-    }
-}

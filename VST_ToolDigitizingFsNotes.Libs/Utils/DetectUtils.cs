@@ -14,7 +14,8 @@ public static partial class DetectUtils
     /// Regex phát hiện số tiền trong 1 chuỗi
     /// </summary>
     /// <returns></returns>
-    [GeneratedRegex(@"(?<pos>\b(?:\d{1,3}(?:[., ]\d{3}){1,5})\b)|(?<neg>\(\b(?:\d{1,3}(?:[., ]\d{3}){1,5})\b\))")]
+    //[GeneratedRegex(@"(?<pos>\b(?:\d{1,3}(?:[., ]\d{3}){1,5})\b)|(?<neg>\(\b(?:\d{1,3}(?:[., ]\d{3}){1,5})\b\))")]
+    [GeneratedRegex(@"(?<pos>(?:\d{1,3}(?:[., ]\d{3}){1,5}))|(?<neg>\((?:\d{1,3}(?:[., ]\d{3}){1,5})\))")]
     public static partial Regex MoneyRegex001();
 
     [Obsolete("Không sử dụng nữa")]
@@ -44,6 +45,7 @@ public static partial class DetectUtils
     /// Chuỗi regex phát hiện heading trong file OCR
     /// Nhóm h_symbol
     ///     Nhóm h_number: bắt các heading bắt đầu bằng số và có dạng 1. | 1.2. | 1.3.1. 
+    ///     Nhóm h_number2: bắt các heading bắt đầu bằng số có dạng 12a. 22a. 33a. 44a. 1a.
     ///     Nhóm h_roman: bắt các heading bắt đầu bằng số La Mã và có dạng I. | II. | III. | IV. | V. | VI. | VII. | VIII. | IX. | X. (tối đa 40)
     ///     Nhóm h_char1: bắt các heading bắt đầu bằng ký tự chữ cái và có dạng A. | B. | C. | a. | b. | c.
     ///     Nhóm h_char2: bắt các heading bắt đầu bằng ký tự chữ cái và số và có dạng (1). | (2). | (3). | (a). | (b). | (c). | (1) | (2) | (3) | (a) | (b) | (c)
@@ -53,7 +55,10 @@ public static partial class DetectUtils
     /// </summary>
     /// <returns></returns>
     //[GeneratedRegex(@"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d+){0,3}\.?)|(?<h_roman>(?:X{0,3})(?:IX|IV|V?I{0,3})\.)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.*?)(?=\n|$)")]
-    [GeneratedRegex(@"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d{1,2}){0,3}\.?)|(?<h_roman>(?=.)(?:(?:X{0,3})(?:IX|IV|V?I{0,3}))\.?)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.{1,222}?)(?=\n|$)")]
+    //[GeneratedRegex(@"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d{1,2}){0,3}\.?)|(?<h_roman>(?=.)(?:(?:X{0,3})(?:IX|IV|V?I{0,3}))\.?)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.{1,222}?)(?=\n|$)")]
+    [GeneratedRegex(
+        @"^(?<h_symbol>(?<h_number>\d{1,2}(?:\.\d{1,2}){0,3}\.?)|(?<h_number2>(?!0)[1-9]{1,2}[a-zA-Z]{1}\.)|(?<h_roman>(?=.)(?:(?:X{0,3})(?:IX|IV|V?I{0,3}))\.?)|(?<h_char1>[a-zA-Z]\.)|(?<h_char2>\([\da-zA-Z]+\)\.?))(?:[ \t]+)(?<h_content>.{1,222}?)(?=\n|$)"
+    )]
     public static partial Regex HeadingRegex003();
 
     /// <summary>
@@ -71,8 +76,18 @@ public static partial class DetectUtils
 
 public partial class DetectUtils
 {
-    public static List<List<T>> FindAllSubsetSums<T>(IList<T> arr, double sum, Func<T, double> valueSelector, CancellationToken cancellationToken = default)
+    public static List<List<T>> FindAllSubsetSums<T>(IList<T> arr, double sum, Func<T, double> valueSelector, int maxLength = 23, CancellationToken cancellationToken = default)
     {
+        if (arr == null || arr.Count == 0)
+        {
+            return [];
+        }
+
+        if(arr.Count > maxLength)
+        {
+            throw new ArgumentException("Số lượng phần tử trong mảng quá lớn");
+        }
+
         List<List<T>> result = [];
         List<T> current = [];
         FindSubsets(arr, sum, 0, current, result, valueSelector, cancellationToken);
