@@ -133,32 +133,35 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         {
             foreach (var dataMap in maps)
             {
-                var lastRange = dataMap.rangeDetectFsNotes?.FirstOrDefault();
-                var parent = uow.FsNoteParentModels.FirstOrDefault(x => x.FsNoteId == dataMap.FsNoteId && x.Group == dataMap.Group);
-                if (lastRange == null)
+                if (dataMap.rangeDetectFsNotes == null || dataMap.rangeDetectFsNotes.Count == 0)
                 {
                     continue;
                 }
+                var parent = uow.FsNoteParentModels.FirstOrDefault(x => x.FsNoteId == dataMap.FsNoteId && x.Group == dataMap.Group);
+                foreach (var range in dataMap.rangeDetectFsNotes)
+                {
+                    var moneyCellTarget = range.MoneyCellModel;
+                    var moneysInRange = uow.MoneyCellModels
+                        .Where(x => x.Row >= range.Start.Row && x.Row <= range.End.Row)
+                        // không duyệt số tiền của chỉ tiêu cha, operator != đã được custom lại
+                        .Where(x => x != moneyCellTarget)
+                        .ToList();
 
-                var moneyCellTarget = lastRange.MoneyCellModel;
-                // get money in range with out target money
+                    ///// group moneys theo dòng
+                    //var groupByRow = moneysInRange.GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
+                    ///// group moneys theo cột
+                    //var groupByCol = moneysInRange.GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
+                    //groupByCol.TryGetValue(moneyCellTarget.Col, out var moneysCol);
+                    //groupByRow.TryGetValue(moneyCellTarget.Row, out var moneysRow);
+                    //// phải vét hết chứ không cộng tổng vì có nhiều bctc chưa chỉ tiêu con mô tả không liên quan
+                    //var moneys1 = DetectUtils.FindAllSubsetSums(moneysRow ?? [], Math.Abs(parent!.Value), x => (x.Value));
+                    //var moneys2 = DetectUtils.FindAllSubsetSums(moneysCol ?? [], Math.Abs(parent!.Value), x => (x.Value));
 
-                var moneysInRange = uow.MoneyCellModels
-                    .Where(x => x.Row >= lastRange.Start.Row && x.Row <= lastRange.End.Row)
-                    // không duyệt số tiền của chỉ tiêu cha, operator != đã được custom lại
-                    .Where(x => x != moneyCellTarget)
-                    .ToList();
+                    var request = new SpecifyMoneyInRangeEqualWithParentRequest(uow, dataMap);
+                    var handler = new SpecifyMoneyInRangeEqualWithParentHandle(moneysInRange, moneyCellTarget);
+                    handler.Handle(request);
 
-                /// group moneys theo dòng
-                var groupByRow = moneysInRange.GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
-                /// group moneys theo cột
-                var groupByCol = moneysInRange.GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
-
-                groupByCol.TryGetValue(moneyCellTarget.Col, out var moneysCol);
-                groupByRow.TryGetValue(moneyCellTarget.Row, out var moneysRow);
-                // phải vét hết chứ không cộng tổng vì có nhiều bctc chưa chỉ tiêu con mô tả không liên quan
-                var moneys1 = DetectUtils.FindAllSubsetSums(moneysRow ?? [], Math.Abs(parent!.Value), x => (x.Value));
-                var moneys2 = DetectUtils.FindAllSubsetSums(moneysCol ?? [], Math.Abs(parent!.Value), x => (x.Value));
+                }
             }
         }
 
