@@ -1,5 +1,4 @@
-﻿using Force.DeepCloner;
-using NPOI.SS.UserModel;
+﻿using NPOI.SS.UserModel;
 using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Chains;
 using VST_ToolDigitizingFsNotes.Libs.Models;
@@ -60,7 +59,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 }
             }
 
-            newHeadingContent = newHeadingContent.RemoveSign4VietnameseString().RemoveSpecialCharacters().ToLower();
+            newHeadingContent = newHeadingContent.ToSystemNomalizeString();
             var heading = new HeadingCellModel
             {
                 ContentSection = newHeadingContent,
@@ -76,7 +75,6 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         {
             // regex to match money string
             var moneyMatches = DetectUtils.MoneyRegex001().Matches(cellValue);
-            // append to moneys list
             foreach (Match match in moneyMatches.Cast<Match>())
             {
                 var money = new MoneyCellModel
@@ -91,7 +89,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         }
 
         /// <summary>
-        /// Thực hiện xác định khu vực phù hợp nhất cho các chỉ tiêu
+        /// Thực hiện xác định khu vực phù hợp nhất cho 1 chỉ tiêu
         /// </summary>
         /// <param name="moneys"></param>
         /// <param name="uow"></param>
@@ -100,26 +98,26 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         {
             var rs = new List<RangeDetectFsNote>();
             _mapping.TryGetValue(parent.FsNoteId, out var mapParentData);
-            // tạm thời bỏ qua các chỉ tiêu bị disable
+            // tạm thời bỏ qua các chỉ tiêu bị disable trong file mapping
             if (mapParentData == null || mapParentData.IsDisabled)
             {
                 return rs;
             }
-            moneys.Reverse(); // số cuối cùng thường là số của chỉ tiêu
+            // số cuối cùng thường là số của chỉ tiêu
+            moneys.Reverse();
             foreach (var money in moneys)
             {
-                DetectChainRequest req = new(uow, parent, money);
+                DetectRangeChainRequest request = new(uow, parent, money);
+                // Xác định khu vực phù hợp nhất cho chỉ tiêu dựa trên heading
                 var handler1 = new DetectUsingHeadingHandler(mapParentData);
+                // Xác định khu vực phù hợp nhất cho chỉ tiêu dựa trên sự tương đồng
                 var handler2 = new DetectUsingSimilartyStringHanlder(mapParentData);
                 handler1.SetNext(handler2);
-                handler1.Handle(req);
 
-                var isSuccess = req.Handled;
-                var result = req.Result;
-               
-                if (result != null && isSuccess)
+                handler1.Handle(request);
+                if (request.Result != null && request.Handled)
                 {
-                   rs.Add(result);
+                    rs.Add(request.Result);
                 }
             }
             return rs;
@@ -133,7 +131,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         /// <param name="parent"></param>
         private void MapFsNoteChildWithMoney(UnitOfWorkModel uow, List<FsNoteDataMap> maps)
         {
-            foreach(var dataMap in maps)
+            foreach (var dataMap in maps)
             {
                 var lastRange = dataMap.rangeDetectFsNotes?.FirstOrDefault();
                 var parent = uow.FsNoteParentModels.FirstOrDefault(x => x.FsNoteId == dataMap.FsNoteId && x.Group == dataMap.Group);
@@ -147,12 +145,13 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
                 var moneysInRange = uow.MoneyCellModels
                     .Where(x => x.Row >= lastRange.Start.Row && x.Row <= lastRange.End.Row)
-                    .Where(x => !(x.Row == moneyCellTarget.Row && x.Col == moneyCellTarget.Col))
+                    // không duyệt số tiền của chỉ tiêu cha, operator != đã được custom lại
+                    .Where(x => x != moneyCellTarget)
                     .ToList();
 
-                // group moneys by row
+                /// group moneys theo dòng
                 var groupByRow = moneysInRange.GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
-                // group moneys by col
+                /// group moneys theo cột
                 var groupByCol = moneysInRange.GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
 
                 groupByCol.TryGetValue(moneyCellTarget.Col, out var moneysCol);

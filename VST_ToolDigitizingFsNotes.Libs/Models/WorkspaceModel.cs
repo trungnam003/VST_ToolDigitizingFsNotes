@@ -78,10 +78,12 @@
             public static readonly int FileUrlColIndex = 5;
 
             public string? FilePdfFsPath { get; set; }
+            public string? FileOcrV11Path { get; set; }
             public string? FileOcrV14Path { get; set; }
             public string? FileOcrV15Path { get; set; }
 
             public bool IsDownloaded { get; set; }
+            public bool IsFileOcrV11Created { get; set; }
             public bool IsFileOcrV14Created { get; set; }
             public bool IsFileOcrV15Created { get; set; }
         }

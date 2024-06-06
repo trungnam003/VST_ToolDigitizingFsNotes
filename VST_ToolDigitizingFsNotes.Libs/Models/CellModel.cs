@@ -21,21 +21,42 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     /// <summary>
     /// Class thể hiện giá trị tiền tệ của một ô trong bảng
     /// </summary>
-    public class MoneyCellModel : MatrixCellModel
+    public class MoneyCellModel : MatrixCellModel, IEquatable<MoneyCellModel>
     {
-        ///// <summary>
-        ///// Giá trị gốc của ô tiền
-        ///// </summary>
-        //public string RawValue { get; set; } = string.Empty;
         /// <summary>
         /// Giá trị được chuyển đổi từ RawValue
         /// </summary>
         public double Value { get; set; }
         public override MatrixCellType CellType { get; set; } = MatrixCellType.Money;
 
+        public bool Equals(MoneyCellModel? other)
+        {
+            return other != null && Value == other.Value && Col == other.Col && Row == other.Row;
+        }
+
         public override string ToString()
         {
             return $"{Row}:{Col} - {CellValue} ({Value})";
+        }
+
+        public static bool operator ==(MoneyCellModel? left, MoneyCellModel? right)
+        {
+            return left?.Equals(right) ?? right is null;
+        }
+
+        public static bool operator !=(MoneyCellModel? left, MoneyCellModel? right)
+        {
+            return !(left == right);
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return Equals(obj as MoneyCellModel);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Value, Row, Col);
         }
     }
     /// <summary>

@@ -50,7 +50,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             _userSettings = userSettings;
             // get settings from properties
             WorkspaceFolderPath = _userSettings.WorkspaceFolderPath ?? string.Empty;
-            Abbyy11Path = _userSettings.Abbyy15Path ?? string.Empty;
+            Abbyy11Path = _userSettings.Abbyy11Path ?? string.Empty;
             Abbyy14Path = _userSettings.Abbyy14Path ?? string.Empty;
             Abbyy15Path = _userSettings.Abbyy15Path ?? string.Empty;
             FileMappingPath = _userSettings.FileMappingPath ?? string.Empty;
@@ -104,6 +104,20 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             if (dialog.ShowDialog() == true)
             {
                 Abbyy15Path = dialog.FileName;
+            }
+        }
+
+        [RelayCommand]
+        private void SelectFileAbbyy11Exe()
+        {
+            var dialog = new VistaOpenFileDialog()
+            {
+                Filter = "Exe Files (*.exe)|*.exe",
+
+            };
+            if (dialog.ShowDialog() == true)
+            {
+                Abbyy11Path = dialog.FileName;
             }
         }
     }

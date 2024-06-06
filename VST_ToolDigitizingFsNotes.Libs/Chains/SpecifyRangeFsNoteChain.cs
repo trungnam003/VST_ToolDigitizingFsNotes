@@ -3,47 +3,40 @@ using VST_ToolDigitizingFsNotes.Libs.Utils;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Chains;
 
-public sealed class DetectChainRequest
+public sealed class DetectRangeChainRequest : ChainBaseRequest<RangeDetectFsNote>
 {
     public const double AcceptableSimilarity = 0.6868;
     public const int MaximumAllowRowRange = 60;
-    public bool Handled { get; private set; } = false;
     public MoneyCellModel MoneyCell { get; init; }
     public UnitOfWorkModel UnitOfWork { get; init; }
     public FsNoteParentModel Parent { get; init; }
 
-    public DetectChainRequest(UnitOfWorkModel unitOfWork, FsNoteParentModel parent, MoneyCellModel money)
+    public DetectRangeChainRequest(UnitOfWorkModel unitOfWork, FsNoteParentModel parent, MoneyCellModel money)
     {
         UnitOfWork = unitOfWork;
         Parent = parent;
         MoneyCell = money;
     }
-
-    public RangeDetectFsNote? Result { get; internal set; } = null;
-
-    internal void SetHandled(bool handled)
-    {
-        Handled = handled;
-    }
+    
 }
 
-public interface IHandleDetectFsNoteChain
-{
-    void Handle(DetectChainRequest request);
-    void SetNext(IHandleDetectFsNoteChain nextChain);
-}
+//public interface IHandleDetectFsNoteChain
+//{
+//    void Handle(DetectRangeChainRequest request);
+//    void SetNext(IHandleDetectFsNoteChain nextChain);
+//}
 
-public abstract class DetectFsNoteChainBase : IHandleDetectFsNoteChain
-{
-    protected IHandleDetectFsNoteChain? _nextChain;
-    public void SetNext(IHandleDetectFsNoteChain nextChain)
-    {
-        _nextChain = nextChain;
-    }
-    public abstract void Handle(DetectChainRequest request);
-}
+//public abstract class DetectFsNoteChainBase : IHandleDetectFsNoteChain
+//{
+//    protected IHandleDetectFsNoteChain? _nextChain;
+//    public void SetNext(IHandleDetectFsNoteChain nextChain)
+//    {
+//        _nextChain = nextChain;
+//    }
+//    public abstract void Handle(DetectRangeChainRequest request);
+//}
 
-public class DetectUsingHeadingHandler : DetectFsNoteChainBase
+public class DetectUsingHeadingHandler : HandleChainBase<DetectRangeChainRequest>
 {
     public FsNoteParentMappingModel MapParentData { get; init; }
     public DetectUsingHeadingHandler(FsNoteParentMappingModel mapParentData)
@@ -51,12 +44,19 @@ public class DetectUsingHeadingHandler : DetectFsNoteChainBase
         MapParentData = mapParentData;
     }
 
-    public override void Handle(DetectChainRequest request)
+    public override void Handle(DetectRangeChainRequest request)
     {
         var col = request.MoneyCell.Col;
         var row = request.MoneyCell.Row;
         var cell = request.UnitOfWork.OcrWorkbook?.GetSheetAt(0).GetRow(row).GetCell(col);
         var lastCellNum = cell?.Row.PhysicalNumberOfCells ?? 0;
+
+        if (cell == null)
+        {
+            _nextChain?.Handle(request);
+            return;
+        }
+
         var queue = FindNearestHeading(request.MoneyCell, request.UnitOfWork.HeadingCellModels);
         if (queue.Count == 0)
         {
@@ -78,7 +78,7 @@ public class DetectUsingHeadingHandler : DetectFsNoteChainBase
                 }
             }
             // nếu độ tương đồng lớn hơn ngưỡng chấp nhận thì dừng lại
-            if (maxSimilarity >= DetectChainRequest.AcceptableSimilarity)
+            if (maxSimilarity >= DetectRangeChainRequest.AcceptableSimilarity)
             {
                 nearestHeading = heading;
                 break;
@@ -121,7 +121,7 @@ public class DetectUsingHeadingHandler : DetectFsNoteChainBase
             {
                 break;
             }
-            if (row - heading.Row > DetectChainRequest.MaximumAllowRowRange)
+            if (row - heading.Row > DetectRangeChainRequest.MaximumAllowRowRange)
             {
                 continue;
             }
@@ -132,18 +132,25 @@ public class DetectUsingHeadingHandler : DetectFsNoteChainBase
     }
 }
 
-public class DetectUsingSimilartyStringHanlder : DetectFsNoteChainBase
+public class DetectUsingSimilartyStringHanlder : HandleChainBase<DetectRangeChainRequest>
 {
     public FsNoteParentMappingModel MapParentData { get; init; }
     public DetectUsingSimilartyStringHanlder(FsNoteParentMappingModel mapParentData)
     {
         MapParentData = mapParentData;
     }
-    public override void Handle(DetectChainRequest request)
+    public override void Handle(DetectRangeChainRequest request)
     {
         var col = request.MoneyCell.Col;
         var row = request.MoneyCell.Row;
         var cell = request.UnitOfWork.OcrWorkbook?.GetSheetAt(0).GetRow(row).GetCell(col);
+
+        if (cell == null)
+        {
+            _nextChain?.Handle(request);
+            return;
+        }
+
         var lastCellNum = cell?.Row.PhysicalNumberOfCells ?? 0;
 
         var queue = FindSimilarityFsNoteParentCell(request.MoneyCell, request.UnitOfWork, MapParentData);
@@ -176,7 +183,7 @@ public class DetectUsingSimilartyStringHanlder : DetectFsNoteChainBase
         var row = money.Row;
         var col = money.Col;
 
-        var start = Math.Max(0, row - DetectChainRequest.MaximumAllowRowRange);
+        var start = Math.Max(0, row - DetectRangeChainRequest.MaximumAllowRowRange);
         var end = row;
         const int FIRST_COL = 0;
         var workbook = uow.OcrWorkbook;
@@ -193,7 +200,7 @@ public class DetectUsingSimilartyStringHanlder : DetectFsNoteChainBase
             {
                 continue;
             }
-            cellValue = cellValue.RemoveSign4VietnameseString().RemoveSpecialCharacters().Trim().ToLower();
+            cellValue = cellValue.ToSystemNomalizeString();
             var maxSimilarity = double.MinValue;
             foreach (var keyword in MapParentData.Keywords)
             {
@@ -204,7 +211,7 @@ public class DetectUsingSimilartyStringHanlder : DetectFsNoteChainBase
                 }
             }
 
-            if (maxSimilarity >= DetectChainRequest.AcceptableSimilarity)
+            if (maxSimilarity >= DetectRangeChainRequest.AcceptableSimilarity)
             {
                 results.Enqueue(new MatrixCellModel()
                 {

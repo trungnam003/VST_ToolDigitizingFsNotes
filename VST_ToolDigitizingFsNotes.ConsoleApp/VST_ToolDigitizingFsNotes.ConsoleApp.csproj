@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="DiffMatchPatch" Version="3.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\VST_ToolDigitizingFsNotes.Libs\VST_ToolDigitizingFsNotes.Libs.csproj" />
     <ProjectReference Include="..\VST_ToolDigitizingFsNotes\VST_ToolDigitizingFsNotes.AppMain.csproj" />
   </ItemGroup>

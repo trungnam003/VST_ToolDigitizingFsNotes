@@ -26,6 +26,11 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             return NormalCharacterRegex().Replace(s, "");
         }
 
+        public static string ToSystemNomalizeString(this string s)
+        {
+            return s.RemoveSign4VietnameseString().RemoveSpecialCharacters().Trim().ToLower();
+        }
+
         [GeneratedRegex("\\p{IsCombiningDiacriticalMarks}+")]
         private static partial Regex IsCombiningDiacriticalMarksRegex();
 

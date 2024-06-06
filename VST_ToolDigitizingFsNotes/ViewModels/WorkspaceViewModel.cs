@@ -135,6 +135,7 @@ public partial class WorkspaceViewModel
         var fileName = Path.GetFileName(sheet.FileUrl);
 
         sheetMetadata.FilePdfFsPath = Path.Combine(workspaceMetadata.PdfDownloadPath, fileName);
+        sheetMetadata.FileOcrV11Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V11.xlsx");
         sheetMetadata.FileOcrV14Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V14.xlsx");
         sheetMetadata.FileOcrV15Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V15.xlsx");
 
@@ -152,7 +153,19 @@ public partial class WorkspaceViewModel
             fileStream.Dispose();
             client.Dispose();
         }
-
+        var tasks = new List<Task>();
+        /// ABBYY 11
+        //var abbyy11String = new AbbyyCmdString.Builder()
+        //    .SetAbbyyPath(_userSettings.Abbyy11Path!)
+        //    .SetInputPath(sheetMetadata.FilePdfFsPath)
+        //    .SetOutputPath(sheetMetadata.FileOcrV11Path)
+        //    .SetQuitOnDone(true)
+        //    .UseVietnameseLanguge()
+        //    .Build();
+        //var p11 = new AbbyyCmdManager(abbyy11String).StartAbbyyProcess();
+        //var t11 = p11.WaitForExitAsync();
+        //tasks.Add(t11);
+        /// ABBYY 14
         var abbyy14String = new AbbyyCmdString.Builder()
             .SetAbbyyPath(_userSettings.Abbyy14Path!)
             .SetInputPath(sheetMetadata.FilePdfFsPath)
@@ -160,7 +173,10 @@ public partial class WorkspaceViewModel
             .SetQuitOnDone(true)
             .UseVietnameseLanguge()
             .Build();
-
+        var p14 = new AbbyyCmdManager(abbyy14String).StartAbbyyProcess();
+        var t14 = p14.WaitForExitAsync();
+        tasks.Add(t14);
+        /// ABBYY 15
         var abbyy15String = new AbbyyCmdString.Builder()
             .SetAbbyyPath(_userSettings.Abbyy15Path!)
             .SetInputPath(sheetMetadata.FilePdfFsPath)
@@ -168,36 +184,34 @@ public partial class WorkspaceViewModel
             .SetQuitOnDone(true)
             .UseVietnameseLanguge()
             .Build();
-
-        var p14 = new AbbyyCmdManager(abbyy14String).StartAbbyyProcess();
         var p15 = new AbbyyCmdManager(abbyy15String).StartAbbyyProcess();
-        _homeViewModel.Status = $"Đang OCR file {fileName} (14)(15)";
-
         var t15 = p15.WaitForExitAsync();
-        var t14 = p14.WaitForExitAsync();
+        tasks.Add(t15);
 
-        await Task.WhenAll(t14, t15);
+        _homeViewModel.Status = $"Đang OCR file {fileName} (11)(14)(15)";
+        await Task.WhenAll(tasks);
 
+        sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV14Path);
         sheetMetadata.IsFileOcrV14Created = File.Exists(sheetMetadata.FileOcrV14Path);
         sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
 
-        try
-        {
-            // json convert and ignore loop
-            dynamic json = new
-            {
-                Name,
-                FileImportFsNoteModels
-            };
-            var jsonStr = JsonConvert.SerializeObject(json, Formatting.Indented, new JsonSerializerSettings
-            {
-                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
-            });
-        }
-        catch (Exception ex)
-        {
-            throw;
-        }
+        //try
+        //{
+        //    // json convert and ignore loop
+        //    dynamic json = new
+        //    {
+        //        Name,
+        //        FileImportFsNoteModels
+        //    };
+        //    var jsonStr = JsonConvert.SerializeObject(json, Formatting.Indented, new JsonSerializerSettings
+        //    {
+        //        ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+        //    });
+        //}
+        //catch (Exception ex)
+        //{
+        //    throw;
+        //}
     }
 
     #endregion
