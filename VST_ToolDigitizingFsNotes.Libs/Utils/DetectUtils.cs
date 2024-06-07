@@ -83,7 +83,7 @@ public partial class DetectUtils
             return [];
         }
 
-        if(arr.Count > maxLength)
+        if (arr.Count > maxLength)
         {
             throw new ArgumentException("Số lượng phần tử trong mảng quá lớn");
         }

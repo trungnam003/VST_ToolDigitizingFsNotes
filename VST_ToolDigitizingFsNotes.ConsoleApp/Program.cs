@@ -1,53 +1,168 @@
-﻿using System.Diagnostics;
-using VST_ToolDigitizingFsNotes.Libs.Utils;
-using F23.StringSimilarity;
-using DiffMatchPatch;
+﻿using DiffMatchPatch;
 namespace VST_ToolDigitizingFsNotes.ConsoleApp
 {
     internal class Program
     {
-        static void Main(string[] args)
+
+        static void Main()
         {
-            string faulty = "262056S34167x";
-            List<string> possibleCorrections = GeneratePossibleCorrections(faulty);
+            //// Văn bản gốc và các mẫu
+            //string text = "hang mua dang di du0ng nguyen lieu vat lieu c0ng cu dung cu chi phi san xuat k!nh doanh do dang";
+            //List<string> patterns = new List<string> { "hang mua dang di duong", "nguyen lieu vat lieu", "cong cu dung cu", "chi phi san xuat kinh doanh" };
+            //// Tách các phần tương đồng
+            //List<string> matchedParts = ExtractSimilarParts(text, patterns);
 
-            Console.WriteLine("Possible corrections:");
-            foreach (var correction in possibleCorrections)
-            {
-                Console.WriteLine(correction);
-            }
-        }
+            //// In ra kết quả
+            //Console.WriteLine("Matched parts:");
+            //foreach (var part in matchedParts)
+            //{
+            //    Console.WriteLine(part);
+            //}
 
-        static List<string> GeneratePossibleCorrections(string faulty)
-        {
-            var corrections = new List<string>();
-            GenerateCorrections(faulty.ToCharArray(), 0, corrections);
-            return corrections;
-        }
+            string text1 = "hang mua dang d1 tren duong nguyen lieu vat lieu";
+            string text2 = "hang ton kho";
 
-        static void GenerateCorrections(char[] faulty, int index, List<string> corrections)
-        {
-            if (index == faulty.Length)
-            {
-                corrections.Add(new string(faulty));
-                return;
-            }
+            // Tạo một đối tượng diff_match_patch
+            diff_match_patch dmp = new diff_match_patch();
 
-            if (char.IsDigit(faulty[index]))
+            // Tìm chuỗi khớp tốt nhất với chuỗi mẫu
+            var matches = dmp.diff_main(text1, text2);
+            //Console.WriteLine(matches);
+
+            // clean
+            dmp.diff_cleanupSemantic(matches);
+
+            // remove all insert and delete 
+            for (int i = 0; i < matches.Count; i++)
             {
-                GenerateCorrections(faulty, index + 1, corrections);
-            }
-            else
-            {
-                for (char replacement = '0'; replacement <= '9'; replacement++)
+                if (matches[i].operation == Operation.INSERT || matches[i].operation == Operation.DELETE)
                 {
-                    char originalChar = faulty[index];
-                    faulty[index] = replacement;
-                    GenerateCorrections(faulty, index + 1, corrections);
-                    faulty[index] = originalChar; // Khôi phục lại ký tự gốc
+                    matches.RemoveAt(i);
+                    i--;
                 }
             }
+            var r = dmp.diff_text2(matches);
+
+            // append all equal text
+            string matchedText = "";
+            foreach (var match in matches)
+            {
+                matchedText += match.text;
+            }
+
+
         }
+
+        static List<string> ExtractSimilarParts(string text, List<string> patterns)
+        {
+            List<string> matchedParts = new List<string>();
+            string remainingText = text;
+
+            while (!string.IsNullOrEmpty(remainingText))
+            {
+                var bestMatch = FindBestMatch(remainingText, patterns);
+                var matchedPattern = bestMatch.Item1;
+                var matchText = bestMatch.Item2;
+                // remove matched pattern from patterns
+                patterns.Remove(matchedPattern);
+
+                if (!string.IsNullOrEmpty(matchText))
+                {
+                    matchedParts.Add(matchText);
+                    remainingText = remainingText.Replace(matchText, "", StringComparison.Ordinal);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return matchedParts;
+        }
+
+        static Tuple<string, string> FindBestMatch(string text, List<string> patterns)
+        {
+            diff_match_patch dmp = new diff_match_patch();
+            List<Tuple<string, string>> matches = new List<Tuple<string, string>>();
+
+            foreach (var pattern in patterns)
+            {
+                List<Diff> diffs = dmp.diff_main(text, pattern);
+                dmp.diff_cleanupSemantic(diffs);
+
+                string matchText = "";
+                bool isAdjacent = true;
+                int lastIndex = -1;
+
+                foreach (var diff in diffs)
+                {
+                    if (diff.operation == Operation.EQUAL)
+                    {
+                        int currentIndex = text.IndexOf(diff.text, lastIndex + 1);
+                        if (lastIndex != -1 && currentIndex != lastIndex + diff.text.Length)
+                        {
+                            isAdjacent = false;
+                            break;
+                        }
+                        lastIndex = currentIndex;
+                        matchText += diff.text;
+                    }
+                }
+
+                if (isAdjacent && matchText.Length > 0)
+                {
+                    // remove orgin text from text
+                    matches.Add(new Tuple<string, string>(pattern, matchText));
+                }
+            }
+
+            // Sắp xếp các phần tử dựa trên độ dài của matchText (các phần tử dài hơn sẽ tốt hơn)
+            matches.Sort((x, y) => y.Item2.Length.CompareTo(x.Item2.Length));
+            return matches.Count > 0 ? matches[0] : new Tuple<string, string>("", "");
+        }
+
+        //static void Main(string[] args)
+        //{
+        //    string faulty = "262056S34167x";
+        //    List<string> possibleCorrections = GeneratePossibleCorrections(faulty);
+
+        //    Console.WriteLine("Possible corrections:");
+        //    foreach (var correction in possibleCorrections)
+        //    {
+        //        Console.WriteLine(correction);
+        //    }
+        //}
+
+        //static List<string> GeneratePossibleCorrections(string faulty)
+        //{
+        //    var corrections = new List<string>();
+        //    GenerateCorrections(faulty.ToCharArray(), 0, corrections);
+        //    return corrections;
+        //}
+
+        //static void GenerateCorrections(char[] faulty, int index, List<string> corrections)
+        //{
+        //    if (index == faulty.Length)
+        //    {
+        //        corrections.Add(new string(faulty));
+        //        return;
+        //    }
+
+        //    if (char.IsDigit(faulty[index]))
+        //    {
+        //        GenerateCorrections(faulty, index + 1, corrections);
+        //    }
+        //    else
+        //    {
+        //        for (char replacement = '0'; replacement <= '9'; replacement++)
+        //        {
+        //            char originalChar = faulty[index];
+        //            faulty[index] = replacement;
+        //            GenerateCorrections(faulty, index + 1, corrections);
+        //            faulty[index] = originalChar; // Khôi phục lại ký tự gốc
+        //        }
+        //    }
+        //}
         //static void Main(string[] args)
         //{
         //    //int a = 0;
@@ -180,5 +295,5 @@ namespace VST_ToolDigitizingFsNotes.ConsoleApp
         //    return new string(corrected);
         //}
     }
-    
+
 }

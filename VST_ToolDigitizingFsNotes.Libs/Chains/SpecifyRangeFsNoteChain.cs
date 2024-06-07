@@ -5,7 +5,6 @@ namespace VST_ToolDigitizingFsNotes.Libs.Chains;
 
 public sealed class DetectRangeChainRequest : ChainBaseRequest<RangeDetectFsNote>
 {
-    public const double AcceptableSimilarity = 0.6868;
     public const int MaximumAllowRowRange = 60;
     public MoneyCellModel MoneyCell { get; init; }
     public UnitOfWorkModel UnitOfWork { get; init; }
@@ -17,7 +16,7 @@ public sealed class DetectRangeChainRequest : ChainBaseRequest<RangeDetectFsNote
         Parent = parent;
         MoneyCell = money;
     }
-    
+
 }
 
 //public interface IHandleDetectFsNoteChain
@@ -36,6 +35,9 @@ public sealed class DetectRangeChainRequest : ChainBaseRequest<RangeDetectFsNote
 //    public abstract void Handle(DetectRangeChainRequest request);
 //}
 
+/// <summary>
+/// Khoanh vùng dùng heading
+/// </summary>
 public class DetectUsingHeadingHandler : HandleChainBase<DetectRangeChainRequest>
 {
     public FsNoteParentMappingModel MapParentData { get; init; }
@@ -78,7 +80,7 @@ public class DetectUsingHeadingHandler : HandleChainBase<DetectRangeChainRequest
                 }
             }
             // nếu độ tương đồng lớn hơn ngưỡng chấp nhận thì dừng lại
-            if (maxSimilarity >= DetectRangeChainRequest.AcceptableSimilarity)
+            if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity)
             {
                 nearestHeading = heading;
                 break;
@@ -103,7 +105,7 @@ public class DetectUsingHeadingHandler : HandleChainBase<DetectRangeChainRequest
             };
             request.SetHandled(true);
             return;
-        }    
+        }
         _nextChain?.Handle(request);
     }
 
@@ -132,6 +134,10 @@ public class DetectUsingHeadingHandler : HandleChainBase<DetectRangeChainRequest
     }
 }
 
+/// <summary>
+/// Khoanh vùng dùng chuỗi tương đương
+/// -> xử lý khi không tìm thấy heading
+/// </summary>
 public class DetectUsingSimilartyStringHanlder : HandleChainBase<DetectRangeChainRequest>
 {
     public FsNoteParentMappingModel MapParentData { get; init; }
@@ -187,7 +193,7 @@ public class DetectUsingSimilartyStringHanlder : HandleChainBase<DetectRangeChai
         var end = row;
         const int FIRST_COL = 0;
         var workbook = uow.OcrWorkbook;
-        for(int i = end; i >= start; i--)
+        for (int i = end; i >= start; i--)
         {
             var cell = workbook?.GetSheetAt(0)?.GetRow(i)?.GetCell(FIRST_COL);
             if (cell == null)
@@ -211,7 +217,100 @@ public class DetectUsingSimilartyStringHanlder : HandleChainBase<DetectRangeChai
                 }
             }
 
-            if (maxSimilarity >= DetectRangeChainRequest.AcceptableSimilarity)
+            if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity)
+            {
+                results.Enqueue(new MatrixCellModel()
+                {
+                    Row = i,
+                    Col = FIRST_COL
+                }, i);
+            }
+        }
+        return results;
+    }
+}
+
+/// <summary>
+/// Xử lý khi chỉ tiêu cha bị gộp vào 1 ô
+/// Ví dụ: 5. Hang ton kho hang hoa dang di tren duong
+/// => cần lấy ra hang ton kho
+/// </summary>
+public class DetectUsingDiffMatchPatchStringHandler : HandleChainBase<DetectRangeChainRequest>
+{
+    public FsNoteParentMappingModel MapParentData { get; init; }
+    public DetectUsingDiffMatchPatchStringHandler(FsNoteParentMappingModel mapParentData)
+    {
+        MapParentData = mapParentData;
+    }
+
+    public override void Handle(DetectRangeChainRequest request)
+    {
+        var col = request.MoneyCell.Col;
+        var row = request.MoneyCell.Row;
+        var cell = request.UnitOfWork.OcrWorkbook?.GetSheetAt(0).GetRow(row).GetCell(col);
+
+        if (cell == null)
+        {
+            _nextChain?.Handle(request);
+            return;
+        }
+        var lastCellNum = cell?.Row.PhysicalNumberOfCells ?? 0;
+        var queue = FindMatchPatchStringFsNoteParentCell(request.MoneyCell, request.UnitOfWork, MapParentData);
+        if (queue.Count == 0)
+        {
+            _nextChain?.Handle(request);
+            return;
+        }
+        var first = queue.Dequeue();
+
+        request.Result = new RangeDetectFsNote()
+        {
+            MoneyCellModel = request.MoneyCell,
+            Start = first,
+            End = new MatrixCellModel()
+            {
+                Row = row,
+                Col = lastCellNum
+            }
+        };
+        request.SetHandled(true);
+    }
+
+    private static PriorityQueue<MatrixCellModel, int> FindMatchPatchStringFsNoteParentCell(MoneyCellModel money, UnitOfWorkModel uow, FsNoteParentMappingModel MapParentData)
+    {
+        var results = new PriorityQueue<MatrixCellModel, int>(Comparer<int>.Create((x, y) => x.CompareTo(y)));
+        var row = money.Row;
+        var col = money.Col;
+        var start = Math.Max(0, row - DetectRangeChainRequest.MaximumAllowRowRange);
+        var end = row;
+        const int FIRST_COL = 0;
+        var workbook = uow.OcrWorkbook;
+
+        for (int i = end; i >= start; i--)
+        {
+            var cell = workbook?.GetSheetAt(0)?.GetRow(i)?.GetCell(FIRST_COL);
+            if (cell == null)
+            {
+                continue;
+            }
+            var cellValue = cell.ToString();
+
+            if (string.IsNullOrEmpty(cellValue))
+            {
+                continue;
+            }
+            cellValue = cellValue.ToSystemNomalizeString();
+            var maxSimilarity = double.MinValue;
+            foreach (var keyword in MapParentData.Keywords)
+            {
+                var text = StringSimilarityUtils.FindDiffMatchPatchFromPlainText(cellValue, keyword);
+                var similarity = StringSimilarityUtils.CalculateSimilarity(text, keyword);
+                if (similarity > maxSimilarity)
+                {
+                    maxSimilarity = similarity;
+                }
+            }
+            if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity)
             {
                 results.Enqueue(new MatrixCellModel()
                 {

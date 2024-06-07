@@ -1,11 +1,9 @@
-﻿
-using NPOI.POIFS.Properties;
-using VST_ToolDigitizingFsNotes.Libs.Models;
+﻿using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Chains;
 
-public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<object>
+public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<SpecifyMoneyResult>
 {
     public UnitOfWorkModel UnitOfWork { get; init; }
     public FsNoteDataMap DataMap { get; init; }
@@ -15,6 +13,14 @@ public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<object
         UnitOfWork = unitOfWork;
         DataMap = dataMap;
     }
+}
+
+public class SpecifyMoneyResult
+{
+    public List<List<MoneyCellModel>> DataRows { get; set; } = [];
+    public List<List<MoneyCellModel>> DataCols { get; set; } = [];
+    public bool HasDataRows => DataRows.Count > 0;
+    public bool HasDataCols => DataCols.Count > 0;
 }
 
 /// <summary>
@@ -38,11 +44,77 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
         var groupByRow = MoneysInRange.GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
         /// group moneys theo cột
         var groupByCol = MoneysInRange.GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
-        groupByCol.TryGetValue(Target.Col, out var moneysCol);
-        groupByRow.TryGetValue(Target.Row, out var moneysRow);
-        var moneyRow = DetectUtils.FindAllSubsetSums(moneysRow ?? [], Math.Abs(parent!.Value), x => (x.Value));
-        var moneyCol = DetectUtils.FindAllSubsetSums(moneysCol ?? [], Math.Abs(parent!.Value), x => (x.Value));
+        var result = new SpecifyMoneyResult();
 
-        /// tiếp tục xử lý
+        groupByCol.TryGetValue(Target.Col, out var moneysCol);
+        if (moneysCol != null && moneysCol.Count > 0)
+        {
+            var list = DetectUtils.FindAllSubsetSums(moneysCol, Math.Abs(parent!.Value), x => (x.Value));
+            result.DataCols.AddRange(list);
+        }
+        groupByRow.TryGetValue(Target.Row, out var moneysRow);
+        if (moneysRow != null && moneysRow.Count > 0)
+        {
+            var list = DetectUtils.FindAllSubsetSums(moneysRow, Math.Abs(parent!.Value), x => (x.Value));
+            result.DataRows.AddRange(list);
+        }
+        if (result.HasDataCols || result.HasDataRows)
+        {
+            request.Result = result;
+            request.SetHandled(true);
+            return;
+        }
+        else
+        {
+            _nextChain?.Handle(request);
+        }
+    }
+}
+
+public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeEqualWithParentRequest>
+{
+    public List<MoneyCellModel> MoneysInRange { get; init; }
+    public MoneyCellModel Target { get; init; }
+
+    public SpecifyAllMoneyInRangeHandle(List<MoneyCellModel> moneyCells, MoneyCellModel target)
+    {
+        MoneysInRange = moneyCells;
+        Target = target;
+    }
+    public override void Handle(SpecifyMoneyInRangeEqualWithParentRequest request)
+    {
+        var uow = request.UnitOfWork;
+        var dataMap = request.DataMap;
+        var parent = dataMap.FsNoteParentModel;
+        /// group moneys theo dòng
+        var groupByRow = MoneysInRange.GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
+        /// group moneys theo cột
+        var groupByCol = MoneysInRange.GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
+        var result = new SpecifyMoneyResult();
+        // find all row
+        foreach (var rowKeys in groupByRow.Keys)
+        {
+            var moneyRows = DetectUtils.FindAllSubsetSums(groupByRow[rowKeys], Math.Abs(parent!.Value), x => (x.Value));
+            result.DataRows.AddRange(moneyRows);
+        }
+
+        // find all col
+        foreach (var colKeys in groupByCol.Keys)
+        {
+            var moneyCols = DetectUtils.FindAllSubsetSums(groupByCol[colKeys], Math.Abs(parent!.Value), x => (x.Value));
+            result.DataCols.AddRange(moneyCols);
+        }
+
+        if (result.HasDataCols || result.HasDataRows)
+        {
+            request.Result = result;
+            request.SetHandled(true);
+            return;
+        }
+        else
+        {
+            _nextChain?.Handle(request);
+        }
+
     }
 }

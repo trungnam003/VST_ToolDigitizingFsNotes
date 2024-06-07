@@ -103,42 +103,56 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             {
                 return rs;
             }
-            // số cuối cùng thường là số của chỉ tiêu
+            // số cuối cùng thường là số của chỉ tiêu, vì đọc từ trên xuống dưới nên cần đảo ngược lại
             moneys.Reverse();
+            RangeDetectFsNote? prevRangeSpecified = null;
             foreach (var money in moneys)
             {
+                // check current money is already in prev range
+                // giảm bớt các khu vực trùng lặp trong nhau
+                if (prevRangeSpecified != null && prevRangeSpecified.IsMoneyInThisRange(money))
+                {
+                    continue;
+                }
+
                 DetectRangeChainRequest request = new(uow, parent, money);
                 // Xác định khu vực phù hợp nhất cho chỉ tiêu dựa trên heading
                 var handler1 = new DetectUsingHeadingHandler(mapParentData);
                 // Xác định khu vực phù hợp nhất cho chỉ tiêu dựa trên sự tương đồng
                 var handler2 = new DetectUsingSimilartyStringHanlder(mapParentData);
+                // Xác định khu vực khi chỉ tiêu cha bị OCR lỗi gộp vào 1 ô
+                var handler3 = new DetectUsingDiffMatchPatchStringHandler(mapParentData);
+
                 handler1.SetNext(handler2);
+                handler2.SetNext(handler3);
 
                 handler1.Handle(request);
                 if (request.Result != null && request.Handled)
                 {
                     rs.Add(request.Result);
+                    prevRangeSpecified = request.Result;
                 }
             }
+
             return rs;
         }
 
         /// <summary>
-        /// Map dữ liệu đã khoanh vùng với tiền
+        /// Tìm các số tiền trong các khu vực đã xác định có tổng bằng chỉ tiêu cha
         /// </summary>
         /// <param name="uow"></param>
         /// <param name="ranges"></param>
         /// <param name="parent"></param>
-        private void MapFsNoteChildWithMoney(UnitOfWorkModel uow, List<FsNoteDataMap> maps)
+        private void ProcessingDeterminesMoneysInRange(UnitOfWorkModel uow, List<FsNoteDataMap> maps)
         {
             foreach (var dataMap in maps)
             {
-                if (dataMap.rangeDetectFsNotes == null || dataMap.rangeDetectFsNotes.Count == 0)
+                if (dataMap.RangeDetectFsNotes == null || dataMap.RangeDetectFsNotes.Count == 0)
                 {
                     continue;
                 }
                 var parent = uow.FsNoteParentModels.FirstOrDefault(x => x.FsNoteId == dataMap.FsNoteId && x.Group == dataMap.Group);
-                foreach (var range in dataMap.rangeDetectFsNotes)
+                foreach (var range in dataMap.RangeDetectFsNotes)
                 {
                     var moneyCellTarget = range.MoneyCellModel;
                     var moneysInRange = uow.MoneyCellModels
@@ -147,24 +161,25 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                         .Where(x => x != moneyCellTarget)
                         .ToList();
 
-                    ///// group moneys theo dòng
-                    //var groupByRow = moneysInRange.GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
-                    ///// group moneys theo cột
-                    //var groupByCol = moneysInRange.GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
-                    //groupByCol.TryGetValue(moneyCellTarget.Col, out var moneysCol);
-                    //groupByRow.TryGetValue(moneyCellTarget.Row, out var moneysRow);
-                    //// phải vét hết chứ không cộng tổng vì có nhiều bctc chưa chỉ tiêu con mô tả không liên quan
-                    //var moneys1 = DetectUtils.FindAllSubsetSums(moneysRow ?? [], Math.Abs(parent!.Value), x => (x.Value));
-                    //var moneys2 = DetectUtils.FindAllSubsetSums(moneysCol ?? [], Math.Abs(parent!.Value), x => (x.Value));
-
                     var request = new SpecifyMoneyInRangeEqualWithParentRequest(uow, dataMap);
-                    var handler = new SpecifyMoneyInRangeEqualWithParentHandle(moneysInRange, moneyCellTarget);
-                    handler.Handle(request);
+                    var handler1 = new SpecifyMoneyInRangeEqualWithParentHandle(moneysInRange, moneyCellTarget);
+                    var handler2 = new SpecifyAllMoneyInRangeHandle(moneysInRange, moneyCellTarget);
 
+                    handler1.SetNext(handler2);
+                    handler1.Handle(request);
+
+                    if (request.Result != null && request.Handled)
+                    {
+                        dataMap.MoneyResults = request.Result;
+                    }
                 }
             }
         }
 
+        private void ProcessingDetectChildrentFsNotesInRange()
+        {
+
+        }
         /// <summary>
         /// Gom nhóm dữ liệu tiền, đánh giá và sắp xếp khu vực phù hợp nhất
         /// </summary>
@@ -188,17 +203,13 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 var rs = ProcessingDeterminesTheMostSuitableRange(moneys, uow, parent);
                 if (rs != null)
                 {
-                    fsNoteDataMap.rangeDetectFsNotes = rs;
+                    fsNoteDataMap.RangeDetectFsNotes = rs;
                 }
                 lst.Add(fsNoteDataMap);
             }
 
-            MapFsNoteChildWithMoney(uow, lst);
-            //var a = uow.FsNoteParentModels.Where(x => x.Value !=0).ToList();
-            //var d = lst;
-
-            //var rate = $"{d.Count}/{a.Count} => { ((double)(d.Count / a.Count) * 100).ToString() }";
-            //var ddd = rate;
+            ProcessingDeterminesMoneysInRange(uow, lst);
+            
         }
     }
 }

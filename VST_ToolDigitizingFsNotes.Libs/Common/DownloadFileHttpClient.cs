@@ -25,6 +25,5 @@ namespace VST_ToolDigitizingFsNotes.Libs.Common
             response.EnsureSuccessStatusCode();
             return response.Content.ReadAsStream();
         }
-
     }
 }

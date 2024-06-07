@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
     <PackageReference Include="DeepCloner" Version="0.10.4" />
+    <PackageReference Include="DiffMatchPatch" Version="3.0.0" />
     <PackageReference Include="F23.StringSimilarity" Version="6.0.0" />
     <PackageReference Include="MediatR" Version="12.2.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.1" />
