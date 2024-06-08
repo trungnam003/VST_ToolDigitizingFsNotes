@@ -93,12 +93,18 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     public class TextCellSuggestModel : MatrixCellModel
     {
         public int NoteId { get; set; }
+        public string NoteName { get; set; } = string.Empty;
         /// <summary>
         /// Độ tương đồng với chỉ tiêu TM BCTC
         /// </summary>
         public double Similarity { get; set; } = 0.0;
 
         public override MatrixCellType CellType { get; set; } = MatrixCellType.Text;
+
+        public override string ToString()
+        {
+            return $"{CellValue} => {NoteName}";
+        }
     }
 
     /// <summary>

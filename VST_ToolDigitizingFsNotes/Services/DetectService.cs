@@ -1,4 +1,6 @@
-﻿using NPOI.SS.UserModel;
+﻿using NPOI.HSSF.Record.CF;
+using NPOI.SS.UserModel;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Chains;
 using VST_ToolDigitizingFsNotes.Libs.Models;
@@ -172,14 +174,107 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                     {
                         dataMap.MoneyResults = request.Result;
                     }
+                    else
+                    {
+                        /// update lại range để xác định lại số tiền
+                    }
                 }
             }
         }
 
-        private void ProcessingDetectChildrentFsNotesInRange()
+        private void ProcessingDetectChildrentFsNotesInRange(UnitOfWorkModel uow, List<FsNoteDataMap> maps)
+        {
+            foreach(var dataMap in maps)
+            {
+                _mapping.TryGetValue(dataMap.FsNoteId, out var currentMapping);
+                if (currentMapping == null)
+                {
+                    continue;
+                }
+                var childrentMappings = currentMapping.Children[dataMap!.Group - 1];
+
+                var firstRange = dataMap?.RangeDetectFsNotes?.FirstOrDefault();
+                if (firstRange == null)
+                {
+                    continue;
+                }
+
+                var startRow = firstRange.Start.Row;
+                var endRow = firstRange.End.Row;
+                var workbook = uow.OcrWorkbook;
+                Debug.WriteLine(currentMapping.Name);
+                Debug.WriteLine($"{startRow} : {endRow}");
+                Debug.WriteLine("");
+                for (int i = startRow; i <= endRow; i++)
+                {
+                    var row = workbook?.GetSheetAt(0).GetRow(i);
+                    if (row == null)
+                    {
+                        continue;
+                    }
+
+                    for (int j = 0; j < row.LastCellNum; j++)
+                    {
+                        var cell = row.GetCell(j);
+                        if (cell == null)
+                        {
+                            continue;
+                        }
+
+                        var cellValue = cell.ToString()?.ToSimilarityCompareString();
+                        if (string.IsNullOrWhiteSpace(cellValue))
+                        {
+                            continue;
+                        }
+                        var cellSuggest = Test(childrentMappings, cellValue, i, j);
+                        if (cell!= null)
+                        {
+                            Debug.WriteLine($"{cellSuggest}");
+                        }
+                    }
+                }
+                Debug.WriteLine("===================================");
+            }
+        }
+
+        private static TextCellSuggestModel? Test(List<FsNoteMappingModel> childMappings, string text, int i, int j)
         {
 
+            const double ZERO = 0.0;
+            double maxSimilarity = ZERO;
+            var cell = new TextCellSuggestModel
+            {
+                Row = i,
+                Col = j,
+                Similarity = ZERO,
+                CellValue = text
+            };
+            foreach (var childMapping in childMappings)
+            {
+                var keywords = childMapping.Keywords;
+                foreach (var keyword in keywords)
+                {
+                    double currentSimilarity = StringSimilarityUtils.CalculateSimilarity(keyword, text);
+                    if (currentSimilarity > maxSimilarity)
+                    {
+                        maxSimilarity = currentSimilarity;
+                    }
+                    if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity)
+                    {
+                        break;
+                    }
+                }
+                if(maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity && maxSimilarity > cell.Similarity)
+                {
+                    cell.Similarity = maxSimilarity;
+                    cell.NoteId = childMapping.Id;
+                    cell.NoteName = childMapping.Name;
+                }
+            }
+            return cell.Similarity == ZERO || cell.Similarity < StringSimilarityUtils.AcceptableSimilarity ? null : cell;
         }
+
+
         /// <summary>
         /// Gom nhóm dữ liệu tiền, đánh giá và sắp xếp khu vực phù hợp nhất
         /// </summary>
@@ -209,7 +304,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             }
 
             ProcessingDeterminesMoneysInRange(uow, lst);
-            
+            ProcessingDetectChildrentFsNotesInRange(uow, lst);
         }
     }
 }

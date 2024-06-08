@@ -26,9 +26,19 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             return NormalCharacterRegex().Replace(s, "");
         }
 
+        public static string KeepCharacterOnly(this string s)
+        {
+            return CharacterOnlyRegex().Replace(s, "");
+        }
+
         public static string ToSystemNomalizeString(this string s)
         {
             return s.RemoveSign4VietnameseString().RemoveSpecialCharacters().Trim().ToLower();
+        }
+
+        public static string ToSimilarityCompareString(this string s)
+        {
+            return s.RemoveSign4VietnameseString().KeepCharacterOnly().Trim().ToLower();
         }
 
         [GeneratedRegex("\\p{IsCombiningDiacriticalMarks}+")]
@@ -36,6 +46,9 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
 
         [GeneratedRegex("[^a-zA-Z0-9_.\\s]+", RegexOptions.Compiled)]
         private static partial Regex NormalCharacterRegex();
+
+        [GeneratedRegex("[^a-zA-Z\\s]+", RegexOptions.Compiled)]
+        private static partial Regex CharacterOnlyRegex();
 
         public static List<List<string>> ConvertToMatrix(string data,
             StringSplitOptions rowOption = StringSplitOptions.RemoveEmptyEntries, StringSplitOptions colOption = StringSplitOptions.None)

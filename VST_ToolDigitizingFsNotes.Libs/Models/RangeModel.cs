@@ -28,4 +28,10 @@ public class RangeDetectFsNote
     {
         return money.Row >= Start.Row && money.Row <= End.Row;
     }
+
+    public void UpdateRange(MatrixCellModel start, MatrixCellModel end)
+    {
+        Start = start;
+        End = end;
+    }
 }

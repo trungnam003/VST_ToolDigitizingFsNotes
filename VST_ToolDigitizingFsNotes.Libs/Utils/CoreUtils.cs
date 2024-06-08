@@ -111,5 +111,41 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             return IsColorInRange(Color.Red, targetColor, rangeRed, 50, 50);
         }
 
+        /// <summary>
+        /// Tính phương sai của một list số nguyên
+        /// </summary>
+        /// <param name="numbers"></param>
+        /// <returns></returns>
+        public static double CalculateVariance(List<int> numbers)
+        {
+            double mean = numbers.Average();
+            return numbers.Average(v => Math.Pow(v - mean, 2));
+        }
+
+        /// <summary>
+        /// Xác định các phần tử có hướng theo hàng hay cột dựa vào phương sai tọa độ hàng và cột
+        /// </summary>
+        /// <param name="elements"></param>
+        /// <returns>1 theo hàng; 2 theo cột; 0 không biết</returns>
+        public static byte DetermineDirection(List<(int, int)> elements)
+        {
+            List<int> rows = elements.Select(e => e.Item1).ToList();
+            List<int> cols = elements.Select(e => e.Item2).ToList();
+            double rowVariance = CalculateVariance(rows);
+            double colVariance = CalculateVariance(cols);
+
+            if (rowVariance < colVariance)
+            {
+                return 1;
+            }
+            else if (colVariance < rowVariance)
+            {
+                return 2;
+            }
+            else
+            {
+                return 0;
+            }
+        }
     }
 }
