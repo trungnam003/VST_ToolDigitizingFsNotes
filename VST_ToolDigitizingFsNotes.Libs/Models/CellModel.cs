@@ -44,6 +44,12 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
             return left?.Equals(right) ?? right is null;
         }
 
+        /// <summary>
+        /// So sánh 2 số tiền có khác nhau không dựa trên tọa độ và giá trị
+        /// </summary>
+        /// <param name="left"></param>
+        /// <param name="right"></param>
+        /// <returns></returns>
         public static bool operator !=(MoneyCellModel? left, MoneyCellModel? right)
         {
             return !(left == right);

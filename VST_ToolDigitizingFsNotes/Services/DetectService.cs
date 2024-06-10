@@ -27,7 +27,9 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
             if (match.Success == false && cell.ColumnIndex == 0)
             {
-                var cellValueCombine = cellValue + cell.Row.GetCell(cell.ColumnIndex + 1)?.ToString() ?? "";
+                const string SPACE = " ";
+                // combine 2 cells lại để xác định heading vì ocr có thể bị lỗi
+                var cellValueCombine = cellValue.TrimEnd() + SPACE + cell.Row.GetCell(cell.ColumnIndex + 1)?.ToString()?.TrimStart() ?? "";
                 match = DetectUtils.HeadingRegex003().Match(cellValueCombine);
             }
 
@@ -129,11 +131,24 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 handler2.SetNext(handler3);
 
                 handler1.Handle(request);
-                if (request.Result != null && request.Handled)
+                if (request.Result == null || !request.Handled)
                 {
-                    rs.Add(request.Result);
-                    prevRangeSpecified = request.Result;
+                    continue;
                 }
+
+                //if (mapParentData.KeywordExtensions.Count > 0)
+                //{
+                //    var narrowRequest = new NarrowRangeDetectedUsingExtensionKeywordsRequest(uow, parent);
+                //    var narrowHandler1 = new NarrowRangeDetectedUsingExtensionKeywordsHandler(mapParentData);
+
+                //    narrowHandler1.Handle(narrowRequest);
+                //    if (narrowRequest.Result != null && narrowRequest.Handled)
+                //    {
+                //        request.Result.UpdateRange(narrowRequest.Result.Start, narrowRequest.Result.End);
+                //    }
+                //}
+                rs.Add(request.Result);
+                prevRangeSpecified = request.Result;
             }
 
             return rs;
@@ -204,10 +219,12 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 var workbook = uow.OcrWorkbook;
                 Debug.WriteLine(currentMapping.Name);
                 Debug.WriteLine($"{startRow} : {endRow}");
-                Debug.WriteLine("");
+
+                var ignoreCell = new HashSet<string>();
                 for (int i = startRow; i <= endRow; i++)
                 {
-                    var row = workbook?.GetSheetAt(0).GetRow(i);
+                    IRow? row = workbook?.GetSheetAt(0).GetRow(i);
+                    IRow? bottomRow = i < endRow ? workbook?.GetSheetAt(0).GetRow(i + 1) : null;
                     if (row == null)
                     {
                         continue;
@@ -215,22 +232,57 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
                     for (int j = 0; j < row.LastCellNum; j++)
                     {
+                        if (ignoreCell.Contains($"{i}:{j}"))
+                        {
+                            continue;
+                        }
+
                         var cell = row.GetCell(j);
                         if (cell == null)
                         {
                             continue;
                         }
-
+                        var bottomCell = bottomRow?.GetCell(j) ?? null;
                         var cellValue = cell.ToString()?.ToSimilarityCompareString();
+
+                        var cellValueCombineWithCellValueBottom = cellValue 
+                            + (bottomCell == null ? string.Empty : " " + bottomCell.ToString()?.ToSimilarityCompareString() ?? string.Empty);
+
                         if (string.IsNullOrWhiteSpace(cellValue))
                         {
                             continue;
                         }
+
                         var cellSuggest = Test(childrentMappings, cellValue, i, j);
-                        if (cell!= null)
+                        var cellSuggestCombine = Test(childrentMappings, cellValueCombineWithCellValueBottom, i, j);
+
+                        var hasSuggest = cellSuggest != null || cellSuggestCombine != null;
+
+                        if (hasSuggest)
                         {
-                            Debug.WriteLine($"{cellSuggest}");
+                            if(cellSuggest != null && cellSuggestCombine != null)
+                            {
+                                if(cellSuggest.Similarity > cellSuggestCombine.Similarity)
+                                {
+                                    Debug.WriteLine(cellSuggest);
+                                }
+                                else
+                                {
+                                    Debug.WriteLine(cellSuggestCombine);
+                                    ignoreCell.Add($"{i+1}:{j}");
+                                }
+                            }
+                            else if(cellSuggestCombine != null)
+                            {
+                                Debug.WriteLine(cellSuggestCombine);
+                                ignoreCell.Add($"{i+1}:{j}");
+                            }
+                            else
+                            {
+                                Debug.WriteLine(cellSuggest);
+                            }
                         }
+                        
                     }
                 }
                 Debug.WriteLine("===================================");
