@@ -25,7 +25,7 @@ public partial class TestMapDataViewModel : ObservableObject
 
     [ObservableProperty] private string _fileInputPath = @"C:\\Users\\trungnamth\\Downloads\\sohoa_BCTC\\1_NHAP_TM_CTCP_1321_VSM_VSM_VTB_VTB.xls";
     [ObservableProperty] private string _fileOcr14Path = string.Empty;
-    [ObservableProperty] private string _fileOcr15Path = @"D:\\TMBCTC_Workspace\\SoHoa_20240530_101731_58501019\\OCR\\VSM_Baocaotaichinh_Q3_2022_Hopnhat_V14.xlsx";
+    [ObservableProperty] private string _fileOcr15Path = @"D:\\TMBCTC_Workspace\\SoHoa_20240530_101731_58501019\\OCR\\VSM_Baocaotaichinh_Q3_2022_Hopnhat_V15.xlsx";
 
     public TestMapDataViewModel(IMediator mediator, IMappingService mappingService, IDetectService detectService)
     {
@@ -134,7 +134,7 @@ public partial class TestMapDataViewModel
         var reqDetectData = new DetectDataRequest(ref uow);
         var taskDetectData = _mediator.Send(reqDetectData);
 
-        var reqLoadInputData = new LoadReferenceFsNoteDataRequest(workbookInput, "TM2", ref uow);
+        var reqLoadInputData = new LoadReferenceFsNoteDataRequest(workbookInput, "TM1", ref uow);
         var taskLoadInputData = _mediator.Send(reqLoadInputData);
         await Task.WhenAll(taskDetectData, taskLoadInputData);
         await taskDetectData;

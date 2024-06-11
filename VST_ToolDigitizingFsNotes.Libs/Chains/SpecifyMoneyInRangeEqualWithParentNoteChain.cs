@@ -15,13 +15,7 @@ public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<Specif
     }
 }
 
-public class SpecifyMoneyResult
-{
-    public List<List<MoneyCellModel>> DataRows { get; set; } = [];
-    public List<List<MoneyCellModel>> DataCols { get; set; } = [];
-    public bool HasDataRows => DataRows.Count > 0;
-    public bool HasDataCols => DataCols.Count > 0;
-}
+
 
 /// <summary>
 /// Xác định tiền theo cột hoặc dòng bằng với giá trị của parent

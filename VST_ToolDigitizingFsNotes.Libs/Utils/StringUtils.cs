@@ -63,6 +63,13 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             }
             return matrix;
         }
+
+        public static bool StartWithLower(string? s)
+        {
+            if (string.IsNullOrEmpty(s))
+                return false;
+            return char.IsLower(s[0]);
+        }
     }
 
     public static partial class StringUtils

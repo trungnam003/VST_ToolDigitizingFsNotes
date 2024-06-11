@@ -1,8 +1,11 @@
 ﻿using NPOI.XSSF.UserModel;
+using System.Diagnostics;
 using System.IO;
 using VST_ToolDigitizingFsNotes.Libs.Common;
+using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
+using VST_ToolDigitizingFsNotes.Libs.Utils;
 
 namespace VST_ToolDigitizingFsNotes.AppMain.Services
 {
@@ -124,6 +127,35 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
             fs.Close();
             workbook.Close();
+        }
+
+        public void MapFsNoteWithMoney(UnitOfWorkModel uow, FsNoteDataMap dataMap)
+        {
+            var ranges = dataMap?.RangeDetectFsNotes?.Where(x => x.DetectRangeStatus == DetectRangeStatus.AllowNextHandle).ToList();
+            if (ranges == null || ranges.Count == 0)
+            {
+                return;
+            }
+            Debug.WriteLine(dataMap!.FsNoteParentModel.Name);
+            foreach (var range in ranges)
+            {
+                var suggests = range.ListTextCellSuggestModels;
+                var input = suggests?.Select(x => (x.Row, x.Col)).ToList();
+                var a = CoreUtils.DetermineDirection(input!);
+                switch (a)
+                {
+                    case 1:
+                        Debug.WriteLine("Row");
+                        break;
+                    case 2:
+                        Debug.WriteLine("Col");
+                        break;
+                    default:
+                        Debug.WriteLine("Not sure");
+                        break;
+                }
+            }
+            Debug.WriteLine("---------------------------------");
         }
     }
 }

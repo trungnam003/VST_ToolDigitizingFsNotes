@@ -1,8 +1,8 @@
-﻿using NPOI.HSSF.Record.CF;
-using NPOI.SS.UserModel;
+﻿using NPOI.SS.UserModel;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Chains;
+using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
@@ -15,9 +15,11 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
     public class DetectService : IDetectService
     {
         private readonly Dictionary<int, FsNoteParentMappingModel> _mapping;
-        public DetectService(Dictionary<int, FsNoteParentMappingModel> mapping)
+        private readonly IMappingService _mappingService;
+        public DetectService(Dictionary<int, FsNoteParentMappingModel> mapping, IMappingService mappingService)
         {
             _mapping = mapping;
+            _mappingService = mappingService;
         }
         public void DetectHeadings(string cellValue, ICell cell, ref List<HeadingCellModel> headings)
         {
@@ -98,14 +100,14 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         /// <param name="moneys"></param>
         /// <param name="uow"></param>
         /// <param name="parent"></param>
-        private List<RangeDetectFsNote> ProcessingDeterminesTheMostSuitableRange(List<MoneyCellModel> moneys, UnitOfWorkModel uow, FsNoteParentModel parent)
+        private (List<RangeDetectFsNote>?, MapFsNoteStatus) ProcessingDeterminesTheMostSuitableRange(List<MoneyCellModel> moneys, UnitOfWorkModel uow, FsNoteParentModel parent)
         {
             var rs = new List<RangeDetectFsNote>();
             _mapping.TryGetValue(parent.FsNoteId, out var mapParentData);
             // tạm thời bỏ qua các chỉ tiêu bị disable trong file mapping
             if (mapParentData == null || mapParentData.IsDisabled)
             {
-                return rs;
+                return (null, MapFsNoteStatus.IgnoreMap);
             }
             // số cuối cùng thường là số của chỉ tiêu, vì đọc từ trên xuống dưới nên cần đảo ngược lại
             moneys.Reverse();
@@ -129,14 +131,14 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
                 handler1.SetNext(handler2);
                 handler2.SetNext(handler3);
-
                 handler1.Handle(request);
+
                 if (request.Result == null || !request.Handled)
                 {
                     continue;
                 }
-
-                //if (mapParentData.KeywordExtensions.Count > 0)
+                //var hasExtensionKeywords = mapParentData.KeywordExtensions.Count > 0;
+                //if (hasExtensionKeywords)
                 //{
                 //    var narrowRequest = new NarrowRangeDetectedUsingExtensionKeywordsRequest(uow, parent);
                 //    var narrowHandler1 = new NarrowRangeDetectedUsingExtensionKeywordsHandler(mapParentData);
@@ -147,11 +149,12 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 //        request.Result.UpdateRange(narrowRequest.Result.Start, narrowRequest.Result.End);
                 //    }
                 //}
+                request.Result.DetectRangeStatus = DetectRangeStatus.AllowNextHandle;
                 rs.Add(request.Result);
                 prevRangeSpecified = request.Result;
             }
 
-            return rs;
+            return rs.Count == 0 ? (null, MapFsNoteStatus.NotYetMapped) : (rs, MapFsNoteStatus.CanMap);
         }
 
         /// <summary>
@@ -160,66 +163,84 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         /// <param name="uow"></param>
         /// <param name="ranges"></param>
         /// <param name="parent"></param>
-        private void ProcessingDeterminesMoneysInRange(UnitOfWorkModel uow, List<FsNoteDataMap> maps)
+        private void ProcessingDeterminesMoneysInRange(UnitOfWorkModel uow, FsNoteDataMap dataMap)
         {
-            foreach (var dataMap in maps)
+            var noteId = dataMap.FsNoteId;
+            var group = dataMap.Group;
+            var parent = uow.FsNoteParentModels.FirstOrDefault(x => x.FsNoteId == noteId && x.Group == group);
+
+            if (parent == null)
             {
-                if (dataMap.RangeDetectFsNotes == null || dataMap.RangeDetectFsNotes.Count == 0)
+                return;
+            }
+
+            if (dataMap.RangeDetectFsNotes == null || dataMap.RangeDetectFsNotes.Count == 0)
+            {
+                return;
+            }
+            foreach (var range in dataMap.RangeDetectFsNotes)
+            {
+                var moneyCellTarget = range.MoneyCellModel;
+                var moneysInRange = uow.MoneyCellModels
+                    .Where(x => x.Row >= range.Start.Row && x.Row <= range.End.Row)
+                    // không duyệt số tiền của chỉ tiêu cha, operator != đã được custom lại
+                    .Where(x => x != moneyCellTarget)
+                    .ToList();
+
+                var request = new SpecifyMoneyInRangeEqualWithParentRequest(uow, dataMap);
+                var handler1 = new SpecifyMoneyInRangeEqualWithParentHandle(moneysInRange, moneyCellTarget);
+                var handler2 = new SpecifyAllMoneyInRangeHandle(moneysInRange, moneyCellTarget);
+
+                handler1.SetNext(handler2);
+                handler1.Handle(request);
+
+                if (request.Result != null && request.Handled)
                 {
-                    continue;
+                    range.MoneyResults = request.Result;
                 }
-                var parent = uow.FsNoteParentModels.FirstOrDefault(x => x.FsNoteId == dataMap.FsNoteId && x.Group == dataMap.Group);
-                foreach (var range in dataMap.RangeDetectFsNotes)
+                else
                 {
-                    var moneyCellTarget = range.MoneyCellModel;
-                    var moneysInRange = uow.MoneyCellModels
-                        .Where(x => x.Row >= range.Start.Row && x.Row <= range.End.Row)
-                        // không duyệt số tiền của chỉ tiêu cha, operator != đã được custom lại
-                        .Where(x => x != moneyCellTarget)
-                        .ToList();
-
-                    var request = new SpecifyMoneyInRangeEqualWithParentRequest(uow, dataMap);
-                    var handler1 = new SpecifyMoneyInRangeEqualWithParentHandle(moneysInRange, moneyCellTarget);
-                    var handler2 = new SpecifyAllMoneyInRangeHandle(moneysInRange, moneyCellTarget);
-
-                    handler1.SetNext(handler2);
-                    handler1.Handle(request);
-
-                    if (request.Result != null && request.Handled)
-                    {
-                        dataMap.MoneyResults = request.Result;
-                    }
-                    else
-                    {
-                        /// update lại range để xác định lại số tiền
-                    }
+                    range.MoneyResults = null;
+                    range.DetectRangeStatus = DetectRangeStatus.RequireDetectAgain;
                 }
+            }
+            if(dataMap.RangeDetectFsNotes.Count == dataMap.RangeDetectFsNotes.Count(x => x.DetectRangeStatus == DetectRangeStatus.RequireDetectAgain))
+            {
+                dataMap.MapStatus = MapFsNoteStatus.RequireMapAgain;
             }
         }
 
-        private void ProcessingDetectChildrentFsNotesInRange(UnitOfWorkModel uow, List<FsNoteDataMap> maps)
+        private void ProcessingDetectChildrentFsNotesInRange(UnitOfWorkModel uow, FsNoteDataMap dataMap)
         {
-            foreach(var dataMap in maps)
+            _mapping.TryGetValue(dataMap.FsNoteId, out var currentMapping);
+            if (currentMapping == null)
             {
-                _mapping.TryGetValue(dataMap.FsNoteId, out var currentMapping);
-                if (currentMapping == null)
+                return;
+            }
+            var childrentMappings = currentMapping.Children[dataMap!.Group - 1];
+
+            if(dataMap.RangeDetectFsNotes == null || dataMap.RangeDetectFsNotes.Count == 0)
+            {
+                return;
+            }
+
+            var workbook = uow.OcrWorkbook;
+            foreach (var range in dataMap.RangeDetectFsNotes)
+            {
+                List<TextCellSuggestModel> textCellSuggestModels = [];
+                if (range == null)
                 {
                     continue;
                 }
-                var childrentMappings = currentMapping.Children[dataMap!.Group - 1];
 
-                var firstRange = dataMap?.RangeDetectFsNotes?.FirstOrDefault();
-                if (firstRange == null)
+                if(range.DetectRangeStatus != DetectRangeStatus.AllowNextHandle)
                 {
                     continue;
                 }
-
-                var startRow = firstRange.Start.Row;
-                var endRow = firstRange.End.Row;
-                var workbook = uow.OcrWorkbook;
-                Debug.WriteLine(currentMapping.Name);
-                Debug.WriteLine($"{startRow} : {endRow}");
-
+                var startRow = range.Start.Row;
+                var endRow = range.End.Row;
+                //Debug.WriteLine(currentMapping.Name);
+                //Debug.WriteLine($"{startRow} : {endRow}");
                 var ignoreCell = new HashSet<string>();
                 for (int i = startRow; i <= endRow; i++)
                 {
@@ -232,6 +253,11 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
                     for (int j = 0; j < row.LastCellNum; j++)
                     {
+                        if(i == startRow && j == range.Start.Col)
+                        {
+                            continue;
+                        }
+
                         if (ignoreCell.Contains($"{i}:{j}"))
                         {
                             continue;
@@ -242,50 +268,73 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                         {
                             continue;
                         }
-                        var bottomCell = bottomRow?.GetCell(j) ?? null;
                         var cellValue = cell.ToString()?.ToSimilarityCompareString();
-
-                        var cellValueCombineWithCellValueBottom = cellValue 
-                            + (bottomCell == null ? string.Empty : " " + bottomCell.ToString()?.ToSimilarityCompareString() ?? string.Empty);
 
                         if (string.IsNullOrWhiteSpace(cellValue))
                         {
                             continue;
                         }
+                        var bottomCell = bottomRow?.GetCell(j) ?? null;
+                        var bottomCellValue = bottomCell?.ToString();
+                        var cellValueCombineWithCellValueBottom = cellValue;
+                        bool allowCombine = false;
+                        // Kết hợp với text phía dưới để tăng khả năng nhận diện chính xác hơn vì có chỉ tiêu xuống dòng
+                        if (!string.IsNullOrWhiteSpace(bottomCellValue) && StringUtils.StartWithLower(bottomCellValue))
+                        {
+                            var bottomCellValueNormalize = bottomCellValue.ToSimilarityCompareString();
+                            cellValueCombineWithCellValueBottom = cellValue + " " + bottomCellValueNormalize;
+                            allowCombine = true;
+                        }
 
                         var cellSuggest = Test(childrentMappings, cellValue, i, j);
-                        var cellSuggestCombine = Test(childrentMappings, cellValueCombineWithCellValueBottom, i, j);
+                        var cellSuggestCombine = allowCombine ? Test(childrentMappings, cellValueCombineWithCellValueBottom, i, j) : null;
 
                         var hasSuggest = cellSuggest != null || cellSuggestCombine != null;
 
                         if (hasSuggest)
                         {
-                            if(cellSuggest != null && cellSuggestCombine != null)
+                            if (cellSuggest != null && cellSuggestCombine != null)
                             {
-                                if(cellSuggest.Similarity > cellSuggestCombine.Similarity)
+                                if (cellSuggest.Similarity > cellSuggestCombine.Similarity)
                                 {
-                                    Debug.WriteLine(cellSuggest);
+                                    //Debug.WriteLine(cellSuggest);
+                                    textCellSuggestModels.Add(cellSuggest);
                                 }
                                 else
                                 {
-                                    Debug.WriteLine(cellSuggestCombine);
-                                    ignoreCell.Add($"{i+1}:{j}");
+                                    //Debug.WriteLine(cellSuggestCombine);
+                                    ignoreCell.Add($"{i + 1}:{j}");
+                                    textCellSuggestModels.Add(cellSuggestCombine);
                                 }
                             }
-                            else if(cellSuggestCombine != null)
+                            else if (cellSuggestCombine != null)
                             {
-                                Debug.WriteLine(cellSuggestCombine);
-                                ignoreCell.Add($"{i+1}:{j}");
+                                //Debug.WriteLine(cellSuggestCombine);
+                                ignoreCell.Add($"{i + 1}:{j}");
+                                textCellSuggestModels.Add(cellSuggestCombine);
                             }
-                            else
+                            else if (cellSuggest != null)
                             {
-                                Debug.WriteLine(cellSuggest);
+                                //Debug.WriteLine(cellSuggest);
+                                textCellSuggestModels.Add(cellSuggest);
                             }
                         }
-                        
                     }
                 }
-                Debug.WriteLine("===================================");
+                //Debug.WriteLine("===================================");
+
+                if(textCellSuggestModels.Count > 0)
+                {
+                    range.ListTextCellSuggestModels = textCellSuggestModels;
+                }
+                else
+                {
+                    range.DetectRangeStatus = DetectRangeStatus.RequireDetectAgain;
+                }
+            }
+            if(dataMap.RangeDetectFsNotes.Count == dataMap.RangeDetectFsNotes.Count(x => x.DetectRangeStatus == DetectRangeStatus.RequireDetectAgain))
+            {
+                dataMap.MapStatus = MapFsNoteStatus.RequireMapAgain;
             }
         }
 
@@ -316,7 +365,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                         break;
                     }
                 }
-                if(maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity && maxSimilarity > cell.Similarity)
+                if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity && maxSimilarity > cell.Similarity)
                 {
                     cell.Similarity = maxSimilarity;
                     cell.NoteId = childMapping.Id;
@@ -333,7 +382,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         /// <param name="uow"></param>
         public void GroupFsNoteDataRange(UnitOfWorkModel uow)
         {
-            var lst = new List<FsNoteDataMap>();
+            var listDataMap = new List<FsNoteDataMap>();
             foreach (var parent in uow.FsNoteParentModels)
             {
                 var d2 = parent.Value;
@@ -347,16 +396,36 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 List<MoneyCellModel> moneys = uow.MoneyCellModels
                     .Where(money => Math.Abs(money.Value) == Math.Abs(parent.Value))
                     .ToList();
-                var rs = ProcessingDeterminesTheMostSuitableRange(moneys, uow, parent);
-                if (rs != null)
+
+                var (result, status) = ProcessingDeterminesTheMostSuitableRange(moneys, uow, parent);
+
+                if (result != null)
                 {
-                    fsNoteDataMap.RangeDetectFsNotes = rs;
+                    fsNoteDataMap.RangeDetectFsNotes = result;
                 }
-                lst.Add(fsNoteDataMap);
+                fsNoteDataMap.MapStatus = status;
+                listDataMap.Add(fsNoteDataMap);
             }
 
-            ProcessingDeterminesMoneysInRange(uow, lst);
-            ProcessingDetectChildrentFsNotesInRange(uow, lst);
+            foreach (var dataMap in listDataMap)
+            {
+                if (dataMap.RangeDetectFsNotes != null 
+                    && dataMap.RangeDetectFsNotes.Count > 0
+                    && dataMap.MapStatus == MapFsNoteStatus.CanMap)
+                {
+                    ProcessingDeterminesMoneysInRange(uow, dataMap);
+                    if (dataMap.MapStatus == MapFsNoteStatus.CanMap)
+                    {
+                        ProcessingDetectChildrentFsNotesInRange(uow, dataMap);
+                    }
+                }
+            }
+
+            var canMapList = listDataMap.Where(x => x.MapStatus == MapFsNoteStatus.CanMap).ToList();
+            foreach (var dataMap in canMapList)
+            {
+                _mappingService.MapFsNoteWithMoney(uow, dataMap);
+            }
         }
     }
 }
