@@ -1,4 +1,5 @@
-﻿using VST_ToolDigitizingFsNotes.Libs.Models;
+﻿using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
+using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Chains;
@@ -92,16 +93,12 @@ public class DetectUsingHeadingHandler : HandleChainBase<DetectRangeChainRequest
             request.Result = new RangeDetectFsNote()
             {
                 MoneyCellModel = request.MoneyCell,
-                Start = new MatrixCellModel()
-                {
-                    Row = nearestHeading.Row,
-                    Col = nearestHeading.Col
-                },
+                Start = nearestHeading,
                 End = new MatrixCellModel()
                 {
                     Row = row,
                     Col = lastCellNum
-                }
+                },
             };
             request.SetHandled(true);
             return;
@@ -271,7 +268,8 @@ public class DetectUsingDiffMatchPatchStringHandler : HandleChainBase<DetectRang
             {
                 Row = row,
                 Col = lastCellNum
-            }
+            },
+            DetectStartRangeStatus = DetectStartRangeStatus.AllowStringSimilarity
         };
         request.SetHandled(true);
     }

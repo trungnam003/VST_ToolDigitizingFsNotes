@@ -1,5 +1,4 @@
 ﻿using NPOI.SS.UserModel;
-using System.Diagnostics;
 using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Chains;
 using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
@@ -26,13 +25,22 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             const string Dot = ".";
             // regex to match heading string
             var match = DetectUtils.HeadingRegex003().Match(cellValue);
-
+            MatrixCellModel? combineCell = null;
             if (match.Success == false && cell.ColumnIndex == 0)
             {
                 const string SPACE = " ";
                 // combine 2 cells lại để xác định heading vì ocr có thể bị lỗi
                 var cellValueCombine = cellValue.TrimEnd() + SPACE + cell.Row.GetCell(cell.ColumnIndex + 1)?.ToString()?.TrimStart() ?? "";
                 match = DetectUtils.HeadingRegex003().Match(cellValueCombine);
+                if (match.Success)
+                {
+                    combineCell = new MatrixCellModel
+                    {
+                        Row = cell.RowIndex,
+                        Col = cell.ColumnIndex + 1,
+                        CellValue = cellValueCombine
+                    };
+                }
             }
 
             if (match.Success == false)
@@ -72,7 +80,8 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 SymbolSection = headingSymbol,
                 Row = cell.RowIndex,
                 Col = cell.ColumnIndex,
-                CellValue = $"{headingSymbol}{newHeadingContent}"
+                CellValue = $"{headingSymbol}{newHeadingContent}",
+                CombineWithCell = combineCell
             };
             headings.Add(heading);
         }
@@ -204,7 +213,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                     range.DetectRangeStatus = DetectRangeStatus.RequireDetectAgain;
                 }
             }
-            if(dataMap.RangeDetectFsNotes.Count == dataMap.RangeDetectFsNotes.Count(x => x.DetectRangeStatus == DetectRangeStatus.RequireDetectAgain))
+            if (dataMap.RangeDetectFsNotes.Count == dataMap.RangeDetectFsNotes.Count(x => x.DetectRangeStatus == DetectRangeStatus.RequireDetectAgain))
             {
                 dataMap.MapStatus = MapFsNoteStatus.RequireMapAgain;
             }
@@ -219,7 +228,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             }
             var childrentMappings = currentMapping.Children[dataMap!.Group - 1];
 
-            if(dataMap.RangeDetectFsNotes == null || dataMap.RangeDetectFsNotes.Count == 0)
+            if (dataMap.RangeDetectFsNotes == null || dataMap.RangeDetectFsNotes.Count == 0)
             {
                 return;
             }
@@ -233,7 +242,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                     continue;
                 }
 
-                if(range.DetectRangeStatus != DetectRangeStatus.AllowNextHandle)
+                if (range.DetectRangeStatus != DetectRangeStatus.AllowNextHandle)
                 {
                     continue;
                 }
@@ -253,7 +262,18 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
                     for (int j = 0; j < row.LastCellNum; j++)
                     {
-                        if(i == startRow && j == range.Start.Col)
+                        var ignoreStartCell = (i == startRow && j == range.Start.Col)
+                            && range.DetectStartRangeStatus == DetectStartRangeStatus.SkipStringSimilarity;
+
+                        // Xử lý loại bỏ heading hoặc heading đã được kết hợp với ô khác
+                        var isHeadingAndHasCombineCell = range.Start.GetType() == typeof(HeadingCellModel)
+                            && ((HeadingCellModel)range.Start).CombineWithCell != null;
+
+                        var currentCellIsCombineCell = isHeadingAndHasCombineCell
+                            && ((HeadingCellModel)range.Start).CombineWithCell?.Row == i
+                            && ((HeadingCellModel)range.Start).CombineWithCell?.Col == j;
+
+                        if (ignoreStartCell || currentCellIsCombineCell)
                         {
                             continue;
                         }
@@ -288,6 +308,15 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
                         var cellSuggest = Test(childrentMappings, cellValue, i, j);
                         var cellSuggestCombine = allowCombine ? Test(childrentMappings, cellValueCombineWithCellValueBottom, i, j) : null;
+                        if (cellSuggestCombine != null)
+                        {
+                            cellSuggestCombine.CombineWithCell = new()
+                            {
+                                Row = i + 1,
+                                Col = j,
+                                CellValue = bottomCellValue ?? ""
+                            };
+                        }
 
                         var hasSuggest = cellSuggest != null || cellSuggestCombine != null;
 
@@ -323,7 +352,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 }
                 //Debug.WriteLine("===================================");
 
-                if(textCellSuggestModels.Count > 0)
+                if (textCellSuggestModels.Count > 0)
                 {
                     range.ListTextCellSuggestModels = textCellSuggestModels;
                 }
@@ -332,7 +361,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                     range.DetectRangeStatus = DetectRangeStatus.RequireDetectAgain;
                 }
             }
-            if(dataMap.RangeDetectFsNotes.Count == dataMap.RangeDetectFsNotes.Count(x => x.DetectRangeStatus == DetectRangeStatus.RequireDetectAgain))
+            if (dataMap.RangeDetectFsNotes.Count == dataMap.RangeDetectFsNotes.Count(x => x.DetectRangeStatus == DetectRangeStatus.RequireDetectAgain))
             {
                 dataMap.MapStatus = MapFsNoteStatus.RequireMapAgain;
             }
@@ -375,7 +404,6 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             return cell.Similarity == ZERO || cell.Similarity < StringSimilarityUtils.AcceptableSimilarity ? null : cell;
         }
 
-
         /// <summary>
         /// Gom nhóm dữ liệu tiền, đánh giá và sắp xếp khu vực phù hợp nhất
         /// </summary>
@@ -409,7 +437,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
             foreach (var dataMap in listDataMap)
             {
-                if (dataMap.RangeDetectFsNotes != null 
+                if (dataMap.RangeDetectFsNotes != null
                     && dataMap.RangeDetectFsNotes.Count > 0
                     && dataMap.MapStatus == MapFsNoteStatus.CanMap)
                 {

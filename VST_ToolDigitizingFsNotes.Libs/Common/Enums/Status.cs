@@ -49,3 +49,10 @@ public class DetectRangeStatus(string name, int value)
     public static readonly DetectRangeStatus AllowNextHandle = new(nameof(AllowNextHandle), 4);
 
 }
+
+public class DetectStartRangeStatus(string name, int value)
+    : SmartEnum<DetectStartRangeStatus>(name, value)
+{
+    public static readonly DetectStartRangeStatus SkipStringSimilarity = new(nameof(SkipStringSimilarity), 0);
+    public static readonly DetectStartRangeStatus AllowStringSimilarity = new(nameof(AllowStringSimilarity), 1);
+}

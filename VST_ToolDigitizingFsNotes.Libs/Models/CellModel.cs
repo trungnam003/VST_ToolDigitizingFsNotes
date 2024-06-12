@@ -72,22 +72,12 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     {
         public string ContentSection { get; set; } = string.Empty;
         public string SymbolSection { get; set; } = string.Empty;
-        public HeadingCellMetaData MetaData { get; } = new();
         public override MatrixCellType CellType { get; set; } = MatrixCellType.Heading;
+        public MatrixCellModel? CombineWithCell { get; set; }
 
         public override string ToString()
         {
-            string frontData = string.Join(", ", MetaData.FrontData.Select(x => x.ToString()));
-            string backData = string.Join(", ", MetaData.BackData.Select(x => x.ToString()));
             var str = $"{Row}:{Col} - {CellValue}";
-            if (!string.IsNullOrEmpty(frontData))
-            {
-                str += $" || <<{frontData}>>";
-            }
-            if (!string.IsNullOrEmpty(backData))
-            {
-                str += $" || <<{backData}>>";
-            }
             return str;
         }
     }
@@ -104,6 +94,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         /// Độ tương đồng với chỉ tiêu TM BCTC
         /// </summary>
         public double Similarity { get; set; } = 0.0;
+        public MatrixCellModel? CombineWithCell { get; set; }
 
         public override MatrixCellType CellType { get; set; } = MatrixCellType.Text;
 

@@ -17,9 +17,13 @@ public class RangeDetectFsNote
     public required MatrixCellModel Start { get; set; }
     public required MatrixCellModel End { get; set; }
     public required MoneyCellModel MoneyCellModel { get; set; }
-    public DetectRangeStatus DetectRangeStatus { get; set; } = DetectRangeStatus.NotYetDetected;
+    
     public SpecifyMoneyResult? MoneyResults { get; set; }
     public List<TextCellSuggestModel>? ListTextCellSuggestModels { get; set; }
+
+    
+    public DetectRangeStatus DetectRangeStatus { get; set; } = DetectRangeStatus.NotYetDetected;
+    public DetectStartRangeStatus DetectStartRangeStatus { get; set; } = DetectStartRangeStatus.SkipStringSimilarity;
 
     public override string ToString()
     {

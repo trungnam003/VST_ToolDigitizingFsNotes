@@ -131,6 +131,9 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
         public void MapFsNoteWithMoney(UnitOfWorkModel uow, FsNoteDataMap dataMap)
         {
+            const byte rowDirection = 1;
+            const byte colDirection = 2;
+            const byte unknownDirection = 0;
             var ranges = dataMap?.RangeDetectFsNotes?.Where(x => x.DetectRangeStatus == DetectRangeStatus.AllowNextHandle).ToList();
             if (ranges == null || ranges.Count == 0)
             {
@@ -140,22 +143,41 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             foreach (var range in ranges)
             {
                 var suggests = range.ListTextCellSuggestModels;
-                var input = suggests?.Select(x => (x.Row, x.Col)).ToList();
-                var a = CoreUtils.DetermineDirection(input!);
-                switch (a)
+                List<(int, int)>? input = suggests?.Select(x => (x.Row, x.Col)).ToList();
+
+                if(input == null || input.Count == 0)
                 {
-                    case 1:
-                        Debug.WriteLine("Row");
-                        break;
-                    case 2:
-                        Debug.WriteLine("Col");
-                        break;
-                    default:
-                        Debug.WriteLine("Not sure");
-                        break;
+                    continue;
+                }
+
+                var direction = CoreUtils.DetermineDirection(input);
+                if(direction == rowDirection)
+                {
+
+                }
+                else if(direction == colDirection)
+                {
+                    HandleMappingColumnDirection(uow, dataMap, range);
+                }
+                else if(direction == unknownDirection && input.Count == 1)
+                {
+
                 }
             }
             Debug.WriteLine("---------------------------------");
+        }
+
+        private void HandleMappingColumnDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
+        {
+            if(range.MoneyResults == null)
+            {
+                return;
+            }
+            var moneyCols = range.MoneyResults.DataCols;
+            foreach(var moneys in moneyCols)
+            {
+                
+            }
         }
     }
 }

@@ -8,6 +8,12 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
         {
             return Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2));
         }
+
+        public static double EuclideanDistance(double x1, double y1, double x2, double y2)
+        {
+            return Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2));
+        }
+
         public static int ManhattanDistance(int x1, int y1, int x2, int y2)
         {
             return Math.Abs(x2 - x1) + Math.Abs(y2 - y1);
