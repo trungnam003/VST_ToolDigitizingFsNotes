@@ -16,6 +16,8 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         {
             return $"{Row}:{Col} - {CellValue}";
         }
+
+        
     }
 
     /// <summary>
@@ -28,10 +30,11 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         /// </summary>
         public double Value { get; set; }
         public override MatrixCellType CellType { get; set; } = MatrixCellType.Money;
+        public int IndexInCell { get; set; }
 
         public bool Equals(MoneyCellModel? other)
         {
-            return other != null && Value == other.Value && Col == other.Col && Row == other.Row;
+            return other != null && Value == other.Value && Col == other.Col && Row == other.Row && IndexInCell == other.IndexInCell;
         }
 
         public override string ToString()
@@ -62,8 +65,41 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Value, Row, Col);
+            return HashCode.Combine(Value, Row, Col, IndexInCell);
         }
+
+        //private int? _cachedHashCode;
+        //private IEnumerable<object> GetEqualityComponents()
+        //{
+        //    yield return Row;
+        //    yield return Col;
+        //    yield return NoteId;
+        //    yield return Similarity;
+        //}
+
+        //public override int GetHashCode()
+        //{
+        //    _cachedHashCode ??= GetEqualityComponents()
+        //        .Aggregate(1, (current, obj) =>
+        //        {
+        //            unchecked
+        //            {
+        //                return current * 23 + (obj?.GetHashCode() ?? 0);
+        //            }
+        //        });
+
+        //    return _cachedHashCode.Value;
+        //}
+
+        //public override bool Equals(object? obj)
+        //{
+        //    if (obj == null || obj.GetType() != GetType())
+        //    {
+        //        return false;
+        //    }
+        //    var other = (TextCellSuggestModel)obj;
+        //    return GetEqualityComponents().SequenceEqual(other.GetEqualityComponents());
+        //}
     }
     /// <summary>
     /// Class giữ thông tin của ô là Heading
@@ -102,6 +138,8 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         {
             return $"{CellValue} => {NoteName}";
         }
+
+        
     }
 
     /// <summary>

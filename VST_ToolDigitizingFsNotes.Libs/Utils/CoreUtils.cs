@@ -153,5 +153,26 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
                 return 0;
             }
         }
+
+        /// <summary>
+        /// Tính góc giữa 2 điểm với góc 0 là trục x dương
+        /// </summary>
+        /// <param name="x1"></param>
+        /// <param name="y1"></param>
+        /// <param name="x2"></param>
+        /// <param name="y2"></param>
+        /// <returns></returns>
+        public static double CalculateAngle(int x1, int y1, int x2, int y2)
+        {
+            // Tính các thành phần của vector
+            int dx = x2 - x1;
+            int dy = y2 - y1;
+
+            // Tính góc bằng arctan và chuyển từ radian sang độ
+            double angleRad = Math.Atan2(dy, dx);
+            double angleDeg = angleRad * (180.0 / Math.PI);
+
+            return angleDeg;
+        }
     }
 }

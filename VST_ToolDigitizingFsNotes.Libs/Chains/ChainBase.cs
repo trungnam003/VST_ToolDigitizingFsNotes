@@ -1,8 +1,8 @@
 ﻿namespace VST_ToolDigitizingFsNotes.Libs.Chains
 {
-    public abstract class ChainBaseRequest<T> where T : class
+    public abstract class ChainBaseRequest<TResult> where TResult : class
     {
-        public T? Result { get; internal set; } = null;
+        public TResult? Result { get; internal set; } = null;
         public bool Handled { get; protected set; } = false;
         internal virtual void SetHandled(bool handled)
         {
@@ -10,19 +10,19 @@
         }
     }
 
-    public interface IHandleChain<T> where T : class
+    public interface IHandleChain<TRequest> where TRequest : class
     {
-        void Handle(T request);
-        void SetNext(IHandleChain<T> nextChain);
+        void Handle(TRequest request);
+        void SetNext(IHandleChain<TRequest> nextChain);
     }
 
-    public abstract class HandleChainBase<T> : IHandleChain<T> where T : class
+    public abstract class HandleChainBase<TRequest> : IHandleChain<TRequest> where TRequest : class
     {
-        protected IHandleChain<T>? _nextChain;
-        public void SetNext(IHandleChain<T> nextChain)
+        protected IHandleChain<TRequest>? _nextChain;
+        public void SetNext(IHandleChain<TRequest> nextChain)
         {
             _nextChain = nextChain;
         }
-        public abstract void Handle(T request);
+        public abstract void Handle(TRequest request);
     }
 }

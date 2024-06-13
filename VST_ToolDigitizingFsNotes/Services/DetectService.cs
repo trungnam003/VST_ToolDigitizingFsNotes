@@ -90,13 +90,15 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
         {
             // regex to match money string
             var moneyMatches = DetectUtils.MoneyRegex001().Matches(cellValue);
+            var matchIndex = 0;
             foreach (Match match in moneyMatches.Cast<Match>())
             {
                 var money = new MoneyCellModel
                 {
                     Row = cell.RowIndex,
                     Col = cell.ColumnIndex,
-                    CellValue = (match.Value)
+                    CellValue = match.Value,
+                    IndexInCell = matchIndex++
                 };
                 money.ConvertRawValueToValue();
                 moneys.Add(money);

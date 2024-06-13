@@ -41,15 +41,20 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
         var result = new SpecifyMoneyResult();
 
         groupByCol.TryGetValue(Target.Col, out var moneysCol);
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(3333);
+        var ctsToken = cts.Token;
+
         if (moneysCol != null && moneysCol.Count > 0)
         {
-            var list = DetectUtils.FindAllSubsetSums(moneysCol, Math.Abs(parent!.Value), x => (x.Value));
+            var list = DetectUtils.FindAllSubsetSums(moneysCol, Math.Abs(parent!.Value), x => (x.Value), default, ctsToken);
             result.DataCols.AddRange(list);
         }
         groupByRow.TryGetValue(Target.Row, out var moneysRow);
         if (moneysRow != null && moneysRow.Count > 0)
         {
-            var list = DetectUtils.FindAllSubsetSums(moneysRow, Math.Abs(parent!.Value), x => (x.Value));
+            var list = DetectUtils.FindAllSubsetSums(moneysRow, Math.Abs(parent!.Value), x => (x.Value), default, ctsToken);
             result.DataRows.AddRange(list);
         }
         if (result.HasDataCols || result.HasDataRows)
@@ -86,16 +91,19 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
         var groupByCol = MoneysInRange.GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
         var result = new SpecifyMoneyResult();
         // find all row
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(3333);
+        var ctsToken = cts.Token;
         foreach (var rowKeys in groupByRow.Keys)
         {
-            var moneyRows = DetectUtils.FindAllSubsetSums(groupByRow[rowKeys], Math.Abs(parent!.Value), x => (x.Value));
+            var moneyRows = DetectUtils.FindAllSubsetSums(groupByRow[rowKeys], Math.Abs(parent!.Value), x => (x.Value), default, ctsToken);
             result.DataRows.AddRange(moneyRows);
         }
 
         // find all col
         foreach (var colKeys in groupByCol.Keys)
         {
-            var moneyCols = DetectUtils.FindAllSubsetSums(groupByCol[colKeys], Math.Abs(parent!.Value), x => (x.Value));
+            var moneyCols = DetectUtils.FindAllSubsetSums(groupByCol[colKeys], Math.Abs(parent!.Value), x => (x.Value), default, ctsToken);
             result.DataCols.AddRange(moneyCols);
         }
 
