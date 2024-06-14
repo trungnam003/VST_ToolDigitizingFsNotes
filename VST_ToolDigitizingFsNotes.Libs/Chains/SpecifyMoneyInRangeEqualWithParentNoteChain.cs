@@ -1,4 +1,6 @@
-﻿using VST_ToolDigitizingFsNotes.Libs.Models;
+﻿using System.Collections.Generic;
+using System.Diagnostics;
+using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Chains;
@@ -14,8 +16,6 @@ public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<Specif
         DataMap = dataMap;
     }
 }
-
-
 
 /// <summary>
 /// Xác định tiền theo cột hoặc dòng bằng với giá trị của parent
@@ -48,14 +48,29 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
 
         if (moneysCol != null && moneysCol.Count > 0)
         {
-            var list = DetectUtils.FindAllSubsetSums(moneysCol, Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
-            result.DataCols.AddRange(list);
+            try
+            {
+                var list = DetectUtils.FindAllSubsetSums(moneysCol, Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
+                result.DataCols.AddRange(list);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
         }
         groupByRow.TryGetValue(Target.Row, out var moneysRow);
         if (moneysRow != null && moneysRow.Count > 0)
         {
-            var list = DetectUtils.FindAllSubsetSums(moneysRow, Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
-            result.DataRows.AddRange(list);
+            try
+            {
+                var list = DetectUtils.FindAllSubsetSums(moneysRow, Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
+                result.DataRows.AddRange(list);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
+           
         }
         if (result.HasDataCols || result.HasDataRows)
         {
@@ -96,15 +111,30 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
         var ctsToken = cts.Token;
         foreach (var rowKeys in groupByRow.Keys)
         {
-            var moneyRows = DetectUtils.FindAllSubsetSums(groupByRow[rowKeys], Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
-            result.DataRows.AddRange(moneyRows);
+            try
+            {
+                var moneyRows = DetectUtils.FindAllSubsetSums(groupByRow[rowKeys], Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
+                result.DataRows.AddRange(moneyRows);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
+           
         }
 
         // find all col
         foreach (var colKeys in groupByCol.Keys)
         {
-            var moneyCols = DetectUtils.FindAllSubsetSums(groupByCol[colKeys], Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
-            result.DataCols.AddRange(moneyCols);
+            try
+            {
+                var moneyCols = DetectUtils.FindAllSubsetSums(groupByCol[colKeys], Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
+                result.DataCols.AddRange(moneyCols);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
         }
 
         if (result.HasDataCols || result.HasDataRows)
