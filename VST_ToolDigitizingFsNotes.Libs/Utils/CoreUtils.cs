@@ -133,7 +133,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
         /// </summary>
         /// <param name="elements"></param>
         /// <returns>1 theo hàng; 2 theo cột; 0 không biết</returns>
-        public static byte DetermineDirection(List<(int, int)> elements)
+        public static Direction DetermineDirection(List<(int, int)> elements)
         {
             List<int> rows = elements.Select(e => e.Item1).ToList();
             List<int> cols = elements.Select(e => e.Item2).ToList();
@@ -142,16 +142,23 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
 
             if (rowVariance < colVariance)
             {
-                return 1;
+                return Direction.Row;
             }
             else if (colVariance < rowVariance)
             {
-                return 2;
+                return Direction.Column;
             }
             else
             {
-                return 0;
+                return Direction.Unknown;
             }
+        }
+
+        public enum Direction
+        {
+            Row = 1,
+            Column = 2,
+            Unknown = 0
         }
 
         /// <summary>

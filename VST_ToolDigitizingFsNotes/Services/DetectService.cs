@@ -1,4 +1,5 @@
 ﻿using NPOI.SS.UserModel;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Chains;
 using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
@@ -250,8 +251,8 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 }
                 var startRow = range.Start.Row;
                 var endRow = range.End.Row;
-                //Debug.WriteLine(currentMapping.Name);
-                //Debug.WriteLine($"{startRow} : {endRow}");
+                Debug.WriteLine(currentMapping.Name);
+                Debug.WriteLine($"{startRow} : {endRow}");
                 var ignoreCell = new HashSet<string>();
                 for (int i = startRow; i <= endRow; i++)
                 {
@@ -328,31 +329,31 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                             {
                                 if (cellSuggest.Similarity > cellSuggestCombine.Similarity)
                                 {
-                                    //Debug.WriteLine(cellSuggest);
+                                    Debug.WriteLine(cellSuggest);
                                     textCellSuggestModels.Add(cellSuggest);
                                 }
                                 else
                                 {
-                                    //Debug.WriteLine(cellSuggestCombine);
+                                    Debug.WriteLine(cellSuggestCombine);
                                     ignoreCell.Add($"{i + 1}:{j}");
                                     textCellSuggestModels.Add(cellSuggestCombine);
                                 }
                             }
                             else if (cellSuggestCombine != null)
                             {
-                                //Debug.WriteLine(cellSuggestCombine);
+                                Debug.WriteLine(cellSuggestCombine);
                                 ignoreCell.Add($"{i + 1}:{j}");
                                 textCellSuggestModels.Add(cellSuggestCombine);
                             }
                             else if (cellSuggest != null)
                             {
-                                //Debug.WriteLine(cellSuggest);
+                                Debug.WriteLine(cellSuggest);
                                 textCellSuggestModels.Add(cellSuggest);
                             }
                         }
                     }
                 }
-                //Debug.WriteLine("===================================");
+                Debug.WriteLine("===================================");
 
                 if (textCellSuggestModels.Count > 0)
                 {

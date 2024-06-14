@@ -68,6 +68,19 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
             return HashCode.Combine(Value, Row, Col, IndexInCell);
         }
 
+        public static int MoneyCellModelComparer(MoneyCellModel x, MoneyCellModel y)
+        {
+            if (x.Row == y.Row)
+            {
+                if (x.Col == y.Col)
+                {
+                    return x.IndexInCell.CompareTo(y.IndexInCell);
+                }
+                return x.Col.CompareTo(y.Col);
+            }
+            return x.Row.CompareTo(y.Row);
+        }
+
         //private int? _cachedHashCode;
         //private IEnumerable<object> GetEqualityComponents()
         //{
@@ -122,7 +135,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     /// <summary>
     /// 
     /// </summary>
-    public class TextCellSuggestModel : MatrixCellModel
+    public class TextCellSuggestModel : MatrixCellModel, IEquatable<TextCellSuggestModel>
     {
         public int NoteId { get; set; }
         public string NoteName { get; set; } = string.Empty;
@@ -134,12 +147,25 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
 
         public override MatrixCellType CellType { get; set; } = MatrixCellType.Text;
 
+        public bool Equals(TextCellSuggestModel? other)
+        {
+            return other != null && NoteId == other.NoteId && Col == other.Col && Row == other.Row && Similarity == other.Similarity;
+        }
+
         public override string ToString()
         {
             return $"{CellValue} => {NoteName}";
         }
 
-        
+        public override bool Equals(object? obj)
+        {
+            return Equals(obj as TextCellSuggestModel);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(NoteId, Row, Col, Similarity);
+        }
     }
 
     /// <summary>

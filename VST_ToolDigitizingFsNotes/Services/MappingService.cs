@@ -8,6 +8,7 @@ using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
+using Direction = VST_ToolDigitizingFsNotes.Libs.Utils.CoreUtils.Direction;
 
 namespace VST_ToolDigitizingFsNotes.AppMain.Services;
 
@@ -133,9 +134,6 @@ public class MappingService : IMappingService
 
     public void MapFsNoteWithMoney(UnitOfWorkModel uow, FsNoteDataMap dataMap)
     {
-        const byte rowDirection = 1;
-        const byte colDirection = 2;
-        const byte unknownDirection = 0;
         var ranges = dataMap?.RangeDetectFsNotes?.Where(x => x.DetectRangeStatus == DetectRangeStatus.AllowNextHandle).ToList();
         if (ranges == null || ranges.Count == 0)
         {
@@ -153,22 +151,40 @@ public class MappingService : IMappingService
             }
 
             var direction = CoreUtils.DetermineDirection(input);
-            if (direction == rowDirection)
+            if (direction == Direction.Row)
             {
-
+                HandleMappingRowDirection(uow, dataMap, range);
             }
-            else if (direction == colDirection)
+            else if (direction == Direction.Column)
             {
                 HandleMappingColumnDirection(uow, dataMap, range);
             }
-            else if (direction == unknownDirection && input.Count == 1)
+            else if (direction == Direction.Unknown 
+                && input.Count == 1)
             {
-
+                var debug = 1;
             }
         }
         Debug.WriteLine("---------------------------------");
     }
+    private void HandleMappingRowDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
+    {
+        if (range.MoneyResults == null)
+        {
+            return;
+        }
+        var moneyCols = range.MoneyResults.DataRows;
+        foreach (var moneys in moneyCols)
+        {
+            var moneyClones = moneys.Select(x => x.DeepClone()).ToList();
+            // nên chuyển qua nơi khởi tạo
+            moneyClones.Sort(MoneyCellModel.MoneyCellModelComparer);
 
+            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones);
+            var handler1 = new MapInColHandler();
+            handler1.Handle(request);
+        }
+    }
     private void HandleMappingColumnDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
     {
         if (range.MoneyResults == null)
@@ -178,28 +194,13 @@ public class MappingService : IMappingService
         var moneyCols = range.MoneyResults.DataCols;
         foreach (var moneys in moneyCols)
         {
-            var moneyClones = moneys.Select(x => x.DeepClone())
-                //.OrderBy(cell => cell.Row)
-                //.ThenBy(cell => cell.Col)
-                //.ThenBy(cell => cell.IndexInCell)
-                .ToList();
+            var moneyClones = moneys.Select(x => x.DeepClone()).ToList();
             // nên chuyển qua nơi khởi tạo
-            static int comparison(MoneyCellModel x, MoneyCellModel y)
-            {
-                if (x.Row == y.Row)
-                {
-                    if (x.Col == y.Col)
-                    {
-                        return x.IndexInCell.CompareTo(y.IndexInCell);
-                    }
-                    return x.Col.CompareTo(y.Col);
-                }
-                return x.Row.CompareTo(y.Row);
-            }
-            moneyClones.Sort(comparison);
+            moneyClones.Sort(MoneyCellModel.MoneyCellModelComparer);
 
             var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones);
-
+            var handler1 = new MapInRowHandler();
+            handler1.Handle(request);
         }
     }
 }

@@ -18,8 +18,11 @@ public static partial class DetectUtils
     [GeneratedRegex(@"(?<pos>(?:\d{1,3}(?:[., ]\d{3}){1,5}))|(?<neg>\((?:\d{1,3}(?:[., ]\d{3}){1,5})\))")]
     public static partial Regex MoneyRegex001();
 
-    [Obsolete("Không sử dụng nữa")]
-    [GeneratedRegex(@"\b(\d{1,3}(?:[.,]\d{3})*(?:(?:[.,]\d{1,3})|\b))\b|\((\d{1,3}(?:[.,]\d{3})*(?:(?:[.,]\d{1,3})|\b))\)")]
+    [GeneratedRegex(@"(?<pos>(?:\d{1,6}(?:[., ]\d{3,6}){1,5}))|(?<neg>\((?:\d{1,6}(?:[., ]\d{3,6}){1,5})\))")]
+    public static partial Regex MoneySoftRegex001();
+
+    //[GeneratedRegex(@"\b(\d{1,3}(?:[.,]\d{3})*(?:(?:[.,]\d{1,3})|\b))\b|\((\d{1,3}(?:[.,]\d{3})*(?:(?:[.,]\d{1,3})|\b))\)")]
+    [GeneratedRegex(@"(?<pos>(?:\d{1,3}(?:[.,]\d{3}){1,5}))|(?<neg>\((?:\d{1,3}(?:[.,]\d{3}){1,5})\))")]
     public static partial Regex MoneyRegex002();
 
     /// <summary>

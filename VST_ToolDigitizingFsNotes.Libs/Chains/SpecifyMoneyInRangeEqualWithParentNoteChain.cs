@@ -48,13 +48,13 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
 
         if (moneysCol != null && moneysCol.Count > 0)
         {
-            var list = DetectUtils.FindAllSubsetSums(moneysCol, Math.Abs(parent!.Value), x => (x.Value), default, ctsToken);
+            var list = DetectUtils.FindAllSubsetSums(moneysCol, Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
             result.DataCols.AddRange(list);
         }
         groupByRow.TryGetValue(Target.Row, out var moneysRow);
         if (moneysRow != null && moneysRow.Count > 0)
         {
-            var list = DetectUtils.FindAllSubsetSums(moneysRow, Math.Abs(parent!.Value), x => (x.Value), default, ctsToken);
+            var list = DetectUtils.FindAllSubsetSums(moneysRow, Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
             result.DataRows.AddRange(list);
         }
         if (result.HasDataCols || result.HasDataRows)
@@ -96,14 +96,14 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
         var ctsToken = cts.Token;
         foreach (var rowKeys in groupByRow.Keys)
         {
-            var moneyRows = DetectUtils.FindAllSubsetSums(groupByRow[rowKeys], Math.Abs(parent!.Value), x => (x.Value), default, ctsToken);
+            var moneyRows = DetectUtils.FindAllSubsetSums(groupByRow[rowKeys], Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
             result.DataRows.AddRange(moneyRows);
         }
 
         // find all col
         foreach (var colKeys in groupByCol.Keys)
         {
-            var moneyCols = DetectUtils.FindAllSubsetSums(groupByCol[colKeys], Math.Abs(parent!.Value), x => (x.Value), default, ctsToken);
+            var moneyCols = DetectUtils.FindAllSubsetSums(groupByCol[colKeys], Math.Abs(parent!.Value), x => (x.Value), 23, ctsToken);
             result.DataCols.AddRange(moneyCols);
         }
 
