@@ -1,11 +1,15 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using NPOI.HSSF.UserModel;
+using NPOI.XSSF.UserModel;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using VST_ToolDigitizingFsNotes.Libs.Common;
+using VST_ToolDigitizingFsNotes.Libs.Handlers;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
 
@@ -13,15 +17,11 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels;
 
 public partial class WorkspaceViewModel : ObservableObject
 {
-    [JsonIgnore]
     private readonly IServiceProvider _serviceProvider;
-    [JsonIgnore]
     private readonly IWorkspaceService _workspaceService;
-    [JsonIgnore]
     private readonly HomeViewModel _homeViewModel;
-    [JsonIgnore]
     private readonly UserSettings _userSettings;
-    [JsonIgnore]
+    private readonly IMediator _mediator;
     public readonly WorkspaceMetadata workspaceMetadata;
 
     public WorkspaceViewModel(IServiceProvider serviceProvider)
@@ -32,6 +32,7 @@ public partial class WorkspaceViewModel : ObservableObject
             _workspaceService = _serviceProvider.GetRequiredService<IWorkspaceService>();
             _homeViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
             _userSettings = _serviceProvider.GetRequiredService<UserSettings>();
+            _mediator = _serviceProvider.GetRequiredService<IMediator>();
         }
         Name = _workspaceService.GenerateName();
         workspaceMetadata = new WorkspaceMetadata
@@ -40,23 +41,18 @@ public partial class WorkspaceViewModel : ObservableObject
         };
     }
 
-    public WorkspaceViewModel()
-    {
-
-    }
-
     [ObservableProperty]
-    [JsonProperty]
-
     private string _name;
 
     [ObservableProperty]
-    [JsonProperty]
-
     private ObservableCollection<FileImportFsNoteModel> _fileImportFsNoteModels = [];
 
+    partial void OnFileImportFsNoteModelsChanged(ObservableCollection<FileImportFsNoteModel>? oldValue, ObservableCollection<FileImportFsNoteModel> newValue)
+    {
+        var d = oldValue;
+    }
+
     [ObservableProperty]
-    [JsonIgnore]
     private FileImportFsNoteModel? _selectedFileImport;
 
     [RelayCommand]
@@ -191,28 +187,45 @@ public partial class WorkspaceViewModel
         _homeViewModel.Status = $"Đang OCR file {fileName} (11)(14)(15)";
         await Task.WhenAll(tasks);
 
-        sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV14Path);
+        //sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV14Path);
         sheetMetadata.IsFileOcrV14Created = File.Exists(sheetMetadata.FileOcrV14Path);
         sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
-
-        //try
-        //{
-        //    // json convert and ignore loop
-        //    dynamic json = new
-        //    {
-        //        Name,
-        //        FileImportFsNoteModels
-        //    };
-        //    var jsonStr = JsonConvert.SerializeObject(json, Formatting.Indented, new JsonSerializerSettings
-        //    {
-        //        ReferenceLoopHandling = ReferenceLoopHandling.Ignore
-        //    });
-        //}
-        //catch (Exception ex)
-        //{
-        //    throw;
-        //}
+        await HandleMultiTaskAsync(sheet);
     }
 
+    public async Task HandleMultiTaskAsync(SheetFsNoteModel sheet)
+    {
+        var metadata = sheet.Meta;
+        if (metadata == null)
+        {
+            throw new Exception("Sheet metadata is null");
+        }
+        if (!metadata.IsFileOcrV15Created || metadata.FileOcrV15Path == null)
+        {
+            throw new Exception("File Ocr V15 is not created");
+        }
+        if (!metadata.IsFileOcrV14Created || metadata.FileOcrV14Path == null)
+        {
+            throw new Exception("File Ocr V15 is not created");
+        }
+        var task15 = HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
+        var task14 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
+
+        await Task.WhenAll(task15, task14);
+    }
+
+    public async Task HandleSingleAsync(string ocrPath, UnitOfWorkModel uow)
+    {
+        await using var fsOcr15 = new FileStream(ocrPath, FileMode.Open, FileAccess.Read);
+        var workbookOcr = await Task.Run(() => new XSSFWorkbook(fsOcr15));
+        uow.OcrWorkbook = workbookOcr;
+        {
+            fsOcr15.Close();
+            fsOcr15.Dispose();
+        }
+
+        var reqDetectData = new DetectDataRequest(ref uow);
+        var taskDetectData = await _mediator.Send(reqDetectData);
+    }
     #endregion
 }

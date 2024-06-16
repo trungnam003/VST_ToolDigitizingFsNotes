@@ -130,7 +130,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
                         }
                     }
 
-                    const int acceptRowDistance = 2;
+                    const int acceptRowDistance = 1;
                     if(textCellMinDistance != null)
                     {
                         if(Math.Abs(textCellMinDistance.Row - money.Row) > acceptRowDistance)

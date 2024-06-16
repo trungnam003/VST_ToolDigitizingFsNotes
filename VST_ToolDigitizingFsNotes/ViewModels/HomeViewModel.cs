@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Force.DeepCloner;
 using MediatR;
 using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
@@ -8,6 +9,7 @@ using System.Drawing;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
+using VST_ToolDigitizingFsNotes.Libs.Handlers;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
@@ -244,7 +246,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                 };
                 try
                 {
-                    LoadDataFromSheet(sheet, ref sheetModel);
+                    LoadDataFromSheet(sheet, workbook, ref sheetModel);
                     //fileImports.FsNoteSheets.Add(sheetName, sheetModel);
                 }
                 catch (Exception ex)
@@ -266,7 +268,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         /// </summary>
         /// <param name="sheet"></param>
         /// <param name="sheetFsNoteModel"></param>
-        private static void LoadDataFromSheet(ISheet sheet, ref SheetFsNoteModel sheetFsNoteModel)
+        private static void LoadDataFromSheet(ISheet sheet, HSSFWorkbook workbook, ref SheetFsNoteModel sheetFsNoteModel)
         {
             LoadSheetInfo(sheet, ref sheetFsNoteModel);
 
@@ -321,6 +323,11 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                     throw;
                 }
             }
+
+            var uow = new UnitOfWorkModel();
+            var reqLoadInputData = new LoadReferenceFsNoteDataRequest(workbook, sheetFsNoteModel.SheetName!, ref uow);
+            sheetFsNoteModel.UowAbbyy14.FsNoteParentModels.AddRange(uow.FsNoteParentModels.Select(x => x.DeepClone()));
+            sheetFsNoteModel.UowAbbyy15.FsNoteParentModels.AddRange(uow.FsNoteParentModels.Select(x => x.DeepClone()));
         }
 
         private static bool IsValidCell(IRow row, int colName, int colNoteId)

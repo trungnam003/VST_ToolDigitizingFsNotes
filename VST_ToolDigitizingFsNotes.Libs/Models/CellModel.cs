@@ -39,7 +39,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
 
         public override string ToString()
         {
-            return $"{Row}:{Col} - {CellValue} ({Value})";
+            return $"[{Row}:{Col}] {CellValue} -> {Value} ({IndexInCell})";
         }
 
         public static bool operator ==(MoneyCellModel? left, MoneyCellModel? right)
@@ -217,5 +217,18 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         HeadingGroup,
         Text,
         FsNote
+    }
+
+    public class CompareMoneyCellModel : IEqualityComparer<MoneyCellModel>
+    {
+        public bool Equals(MoneyCellModel? x, MoneyCellModel? y)
+        {
+            return x == y;
+        }
+
+        public int GetHashCode(MoneyCellModel obj)
+        {
+            return obj.GetHashCode();
+        }
     }
 }

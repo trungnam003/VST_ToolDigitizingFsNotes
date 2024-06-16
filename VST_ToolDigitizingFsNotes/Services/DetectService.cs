@@ -89,21 +89,61 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
 
         public void DetectMoneys(string cellValue, ICell cell, ref List<MoneyCellModel> moneys)
         {
-            // regex to match money string
-            var moneyMatches = DetectUtils.MoneyRegex001().Matches(cellValue);
-            var matchIndex = 0;
-            foreach (Match match in moneyMatches.Cast<Match>())
+            // regex to match money string 1
+            var money1Matches = DetectUtils.MoneyRegex001().Matches(cellValue);
+            var matchIndex1 = 0;
+            var list1 = new List<MoneyCellModel>();
+            foreach (Match match in money1Matches.Cast<Match>())
             {
                 var money = new MoneyCellModel
                 {
                     Row = cell.RowIndex,
                     Col = cell.ColumnIndex,
                     CellValue = match.Value,
-                    IndexInCell = matchIndex++
+                    IndexInCell = matchIndex1++
                 };
                 money.ConvertRawValueToValue();
-                moneys.Add(money);
+                list1.Add(money);
             }
+
+            // regex to match money string 2
+            var money2Matches = DetectUtils.MoneyRegex002().Matches(cellValue);
+            var matchIndex2 = 0;
+            var list2 = new List<MoneyCellModel>();
+            foreach (Match match in money2Matches.Cast<Match>())
+            {
+                var money = new MoneyCellModel
+                {
+                    Row = cell.RowIndex,
+                    Col = cell.ColumnIndex,
+                    CellValue = match.Value,
+                    IndexInCell = matchIndex2++
+                };
+                money.ConvertRawValueToValue();
+                list2.Add(money);
+            }
+
+            // regex to match money string 3 soft
+            var money3Matches = DetectUtils.MoneySoftRegex001().Matches(cellValue);
+            var matchIndex3 = 0;
+            var list3 = new List<MoneyCellModel>();
+            foreach (Match match in money3Matches.Cast<Match>())
+            {
+                var money = new MoneyCellModel
+                {
+                    Row = cell.RowIndex,
+                    Col = cell.ColumnIndex,
+                    CellValue = match.Value,
+                    IndexInCell = matchIndex3++
+                };
+                money.ConvertRawValueToValue();
+                list3.Add(money);
+            }
+
+            var newList = list1.Concat(list2).Concat(list3)
+                .Distinct(new CompareMoneyCellModel())
+                .ToList();
+            moneys.AddRange(newList);
         }
 
         /// <summary>

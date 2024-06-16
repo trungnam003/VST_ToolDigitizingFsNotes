@@ -107,6 +107,15 @@
                 return $"Mã CK: {StockCode ?? None}; Kỳ: {ReportTerm ?? None}; Năm: {Year}; TTKD: {AuditedStatus ?? None}; Loại BC: {ReportType ?? None}; ĐVT: {Unit ?? None}";
             }
         }
+
+        public UnitOfWorkModel UowAbbyy14 { get; init; }
+        public UnitOfWorkModel UowAbbyy15 { get; init; }
+
+        public SheetFsNoteModel()
+        {
+            UowAbbyy14 = new();
+            UowAbbyy15 = new();
+        }
     }
     /// <summary>
     /// Đại diện cho dữ liệu của một sheet
@@ -118,5 +127,11 @@
         public double TotalValue { get; set; }
         public List<double> Values { get; set; }
         public bool IsParent { get; set; }
+    }
+
+    public class WorkspaceModel
+    {
+        public string Name { get; set; }
+        public List<FileImportFsNoteModel> FileImports { get; set; }
     }
 }

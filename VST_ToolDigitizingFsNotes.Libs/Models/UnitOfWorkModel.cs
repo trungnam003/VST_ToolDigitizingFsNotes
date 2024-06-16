@@ -12,7 +12,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         public List<HeadingCellModel> HeadingCellModels { get; }
         public List<MoneyCellModel> MoneyCellModels { get; }
         public List<FsNoteParentModel> FsNoteParentModels { get; }
-        public XSSFWorkbook? OcrWorkbook { get; init; }
+        public XSSFWorkbook? OcrWorkbook { get; set; }
 
         private bool _disposed;
 
