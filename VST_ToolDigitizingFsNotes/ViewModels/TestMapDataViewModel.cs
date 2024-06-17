@@ -133,8 +133,8 @@ public partial class TestMapDataViewModel
         var headings = uow.HeadingCellModels;
         var reqDetectData = new DetectDataRequest(ref uow);
         var taskDetectData = _mediator.Send(reqDetectData);
-
-        var reqLoadInputData = new LoadReferenceFsNoteDataRequest(workbookInput, "TM2", ref uow);
+        var notes = uow.FsNoteParentModels;
+        var reqLoadInputData = new LoadReferenceFsNoteDataRequest(workbookInput, "TM2", ref notes);
         var taskLoadInputData = _mediator.Send(reqLoadInputData);
         await Task.WhenAll(taskDetectData, taskLoadInputData);
         await taskDetectData;

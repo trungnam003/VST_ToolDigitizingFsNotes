@@ -1,4 +1,6 @@
-﻿namespace VST_ToolDigitizingFsNotes.Libs.Models
+﻿using Newtonsoft.Json;
+
+namespace VST_ToolDigitizingFsNotes.Libs.Models
 {
     public class WorkspaceMetadata
     {
@@ -48,9 +50,14 @@
     {
         public string Name { get; set; }
         public string SourcePath { get; set; }
+
+        [JsonIgnore]
         public string DestinationPath { get; set; }
+        [JsonIgnore]
         public string ErrorMessage { get; set; }
+        [JsonIgnore]
         public string WarningMessage { get; set; }
+        [JsonIgnore]
         public Dictionary<string, SheetFsNoteModel> FsNoteSheets { get; set; }
     }
 
@@ -63,19 +70,6 @@
         public static readonly string None = "None";
         public class MetaData
         {
-
-            public static readonly int MetaDataColIndex = 5; // F
-
-            public static readonly int StockRowIndex = 2; // F3
-            public static readonly int ReportTermRowIndex = 3; // F4
-            public static readonly int YearRowIndex = 4; // F5
-            public static readonly int AuditedStatusRowIndex = 5; // F6
-            public static readonly int ReportTypeRowIndex = 6; // F7
-            public static readonly int UnitRowIndex = 9; // F10
-
-            // file pdf url F1
-            public static readonly int FileUrlRowIndex = 0;
-            public static readonly int FileUrlColIndex = 5;
 
             public string? FilePdfFsPath { get; set; }
             public string? FileOcrV11Path { get; set; }
@@ -98,7 +92,9 @@
         public string? FileUrl { get; set; }
         public List<SheetFsNoteDataModel> Data { get; set; } = [];
         public string? ErrorMessage { get; set; }
-        public SheetFsNoteModel.MetaData? Meta { get; set; }
+        public MetaData? Meta { get; set; }
+        
+        public List<FsNoteParentModel> RawDataImport { get; set; }  
 
         public string Information
         {
@@ -108,14 +104,9 @@
             }
         }
 
-        public UnitOfWorkModel UowAbbyy14 { get; init; }
-        public UnitOfWorkModel UowAbbyy15 { get; init; }
-
-        public SheetFsNoteModel()
-        {
-            UowAbbyy14 = new();
-            UowAbbyy15 = new();
-        }
+        public UnitOfWorkModel? UowAbbyy14 { get; set; } = null;
+        public UnitOfWorkModel? UowAbbyy15 { get; set; } = null;
+       
     }
     /// <summary>
     /// Đại diện cho dữ liệu của một sheet

@@ -1,4 +1,5 @@
 ﻿
+
 namespace VST_ToolDigitizingFsNotes.Libs.Models
 {
     /// <summary>
@@ -12,9 +13,14 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         public int ParentId { get; set; }
         public bool IsParent { get; set; }
         public int Group { get; set; }
-        public string? CellAddress { get; set; }
-        public Tuple<int, int>? Cell { get; set; }
-        public List<double>? Values { get; set; }
+        public required string CellAddress { get; set; }
+        public required Tuple<int, int> Cell { get; set; }
+        public List<double> Values { get; set; } = [];
+
+        public FsNoteModel()
+        {
+            
+        }
     }
 
     /// <summary>

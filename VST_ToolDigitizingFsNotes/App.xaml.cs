@@ -8,7 +8,6 @@ using VST_ToolDigitizingFsNotes.AppMain.ViewModels;
 using VST_ToolDigitizingFsNotes.AppMain.Views;
 using VST_ToolDigitizingFsNotes.Libs;
 using VST_ToolDigitizingFsNotes.Libs.Common;
-using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
 using Application = System.Windows.Application;
 using GlobalProperties = VST_ToolDigitizingFsNotes.AppMain.Properties;
@@ -31,6 +30,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain
                     AddAppServices(services);
                 })
                 .Build();
+
         }
 
         protected override void OnStartup(StartupEventArgs e)
@@ -64,6 +64,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain
                 services.AddSingleton<IDetectService, DetectService>();
                 services.AddSingleton<IMappingService, MappingService>();
                 services.AddSingleton<IWorkspaceService, WorkspaceService>();
+                services.AddSingleton<IPdfService, PdfService>();
             }
 
             {
@@ -84,7 +85,36 @@ namespace VST_ToolDigitizingFsNotes.AppMain
                     };
                 });
 
-                services.AddSingleton<Dictionary<int, FsNoteParentMappingModel>>(provider => []);
+                services.AddSingleton<DataReaderSheetSetting>(provider =>
+                {
+                    const int startRow = 14;
+                    return new()
+                    {
+                        CheckParentAddress = new(startRow, 2), // C15
+                        NoteIdAddress = new(startRow, 3), // D15 
+                        NameAddress = new(startRow, 4), // E15
+                        ValueAddress = new(startRow, 5), // F15
+                        ParentValueAddress = new(startRow, 6), // G15
+                    };
+                });
+
+                services.AddSingleton<MetaDataReaderSheetSetting>(provider =>
+                {
+                    const int metaCol = 5;
+                    return new()
+                    {
+                        StockCodeAddress = new(2, metaCol), // F3
+                        ReportTermAddress = new(3, metaCol), // F4
+                        YearAddress = new(4, metaCol), // F5
+                        AuditedStatusAddress = new(5, metaCol), // F6
+                        ReportTypeAddress = new(6, metaCol), // F7
+                        UnitAddress = new(9, metaCol), // F10
+                        FileUrlAddress = new(0, metaCol), // F1
+                    };
+                });
+
+                services.AddSingleton<FsNoteMapping>(provider => []);
+                services.AddSingleton<StockCodeFsNoteMapping>(provider => []);
             }
 
             {

@@ -1,11 +1,11 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Force.DeepCloner;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
-using NPOI.HSSF.UserModel;
 using NPOI.XSSF.UserModel;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using VST_ToolDigitizingFsNotes.Libs.Common;
@@ -15,6 +15,12 @@ using VST_ToolDigitizingFsNotes.Libs.Services;
 
 namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels;
 
+public enum WorkspaceInitStatus
+{
+    ReadFromJson,
+    CreateNew
+}
+
 public partial class WorkspaceViewModel : ObservableObject
 {
     private readonly IServiceProvider _serviceProvider;
@@ -22,18 +28,17 @@ public partial class WorkspaceViewModel : ObservableObject
     private readonly HomeViewModel _homeViewModel;
     private readonly UserSettings _userSettings;
     private readonly IMediator _mediator;
+    private readonly IPdfService _pdfService;
     public readonly WorkspaceMetadata workspaceMetadata;
 
     public WorkspaceViewModel(IServiceProvider serviceProvider)
     {
-        using (var scope = serviceProvider.CreateScope())
-        {
-            _serviceProvider = scope.ServiceProvider;
-            _workspaceService = _serviceProvider.GetRequiredService<IWorkspaceService>();
-            _homeViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
-            _userSettings = _serviceProvider.GetRequiredService<UserSettings>();
-            _mediator = _serviceProvider.GetRequiredService<IMediator>();
-        }
+        _serviceProvider = serviceProvider;
+        _workspaceService = _serviceProvider.GetRequiredService<IWorkspaceService>();
+        _homeViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
+        _userSettings = _serviceProvider.GetRequiredService<UserSettings>();
+        _mediator = _serviceProvider.GetRequiredService<IMediator>();
+        _pdfService = _serviceProvider.GetRequiredService<IPdfService>();
         Name = _workspaceService.GenerateName();
         workspaceMetadata = new WorkspaceMetadata
         {
@@ -41,16 +46,13 @@ public partial class WorkspaceViewModel : ObservableObject
         };
     }
 
+    public WorkspaceInitStatus WorkspaceInitStatus { get; set; } = WorkspaceInitStatus.CreateNew;
+
     [ObservableProperty]
     private string _name;
 
     [ObservableProperty]
     private ObservableCollection<FileImportFsNoteModel> _fileImportFsNoteModels = [];
-
-    partial void OnFileImportFsNoteModelsChanged(ObservableCollection<FileImportFsNoteModel>? oldValue, ObservableCollection<FileImportFsNoteModel> newValue)
-    {
-        var d = oldValue;
-    }
 
     [ObservableProperty]
     private FileImportFsNoteModel? _selectedFileImport;
@@ -70,14 +72,23 @@ public partial class WorkspaceViewModel : ObservableObject
                 return;
             }
             _homeViewModel.IsLoading = true;
-            InitWorkspaceFolder();
+            if(WorkspaceInitStatus == WorkspaceInitStatus.CreateNew)
+            {
+                InitWorkspaceFolder();
+                var model = new WorkspaceModel()
+                {
+                    Name = Name,
+                    FileImports = FileImportFsNoteModels.Select(x => x).ToList()
+                };
+                await _workspaceService.SaveWorkspace(workspaceMetadata, model);
+            }
             await Task.Delay(100);
-            await HandleFileImportsAsync();
+            //await HandleFileImportsAsync();
 
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            MessageBox.Show("Có lỗi xảy ra, vui lòng thử lại sau", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Có lỗi xảy ra, {ex.Message}", "Đây là lỗi nhé!", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -91,6 +102,8 @@ public partial class WorkspaceViewModel : ObservableObject
 public partial class WorkspaceViewModel
 {
     #region Methods
+
+
     private void InitWorkspaceFolder()
     {
         if (!_workspaceService.InitFolder(Name, out string pathOut))
@@ -113,10 +126,11 @@ public partial class WorkspaceViewModel
                     _homeViewModel.Status = $"Đang xử lý sheet {key.Key} trong file {file.Name}";
                     await HandleSheetAsync(key.Value);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     _homeViewModel.Status = $"Lỗi xử lý sheet {key.Key} trong file {file.Name}";
-                    await Task.Delay(2000);
+                    await Task.Delay(200);
+                    Debug.WriteLine(ex.Message);
                     continue;
                 }
             }
@@ -140,7 +154,6 @@ public partial class WorkspaceViewModel
 
         using var fileStream = new FileStream(sheetMetadata.FilePdfFsPath, FileMode.Create, FileAccess.Write);
         await stream.CopyToAsync(fileStream);
-        sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath);
         {
             /// Đóng stream và filestream để giải phóng cho phép các process ABBYY sử dụng file
             stream.Close();
@@ -149,6 +162,10 @@ public partial class WorkspaceViewModel
             fileStream.Dispose();
             client.Dispose();
         }
+        var totalPage = await _pdfService.GetPdfPageCountAsync(sheetMetadata.FilePdfFsPath);
+        var splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 30, totalPage);
+
+        sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
         var tasks = new List<Task>();
         /// ABBYY 11
         //var abbyy11String = new AbbyyCmdString.Builder()
@@ -208,10 +225,16 @@ public partial class WorkspaceViewModel
         {
             throw new Exception("File Ocr V15 is not created");
         }
-        var task15 = HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
-        var task14 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
+        sheet.UowAbbyy15 = new UnitOfWorkModel();
+        sheet.UowAbbyy15.FsNoteParentModels.Clear();
+        sheet.UowAbbyy15.FsNoteParentModels.AddRange(sheet.RawDataImport.Select(x => x.DeepClone()));
 
-        await Task.WhenAll(task15, task14);
+        sheet.UowAbbyy14 = new UnitOfWorkModel();
+        sheet.UowAbbyy14.FsNoteParentModels.Clear();
+        sheet.UowAbbyy14.FsNoteParentModels.AddRange(sheet.RawDataImport.Select(x => x.DeepClone()));
+
+        await HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
+        await HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
     }
 
     public async Task HandleSingleAsync(string ocrPath, UnitOfWorkModel uow)
@@ -223,7 +246,6 @@ public partial class WorkspaceViewModel
             fsOcr15.Close();
             fsOcr15.Dispose();
         }
-
         var reqDetectData = new DetectDataRequest(ref uow);
         var taskDetectData = await _mediator.Send(reqDetectData);
     }

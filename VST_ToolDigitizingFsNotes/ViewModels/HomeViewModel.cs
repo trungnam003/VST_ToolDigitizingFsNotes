@@ -1,33 +1,41 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Force.DeepCloner;
 using MediatR;
+using Newtonsoft.Json;
+using NPOI.HPSF;
 using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
 using Ookii.Dialogs.Wpf;
-using System.Drawing;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
+using VST_ToolDigitizingFsNotes.Libs.Common;
 using VST_ToolDigitizingFsNotes.Libs.Handlers;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
-using VST_ToolDigitizingFsNotes.Libs.Utils;
 
 namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
 {
     public partial class HomeViewModel : ObservableObject
     {
-        private UnitOfWorkModel _unitOfWork = new();
         private readonly IMediator _mediator;
         private readonly IMappingService _mappingService;
         private readonly IServiceProvider _serviceProvider;
+        private readonly DataReaderSheetSetting _dataReaderSheetSetting;
+        private readonly MetaDataReaderSheetSetting _metaDataReaderSheetSetting;
 
-        public HomeViewModel(IMediator mediator, IMappingService mappingService, IServiceProvider serviceProvider)
+        public HomeViewModel(
+            IMediator mediator,
+            IMappingService mappingService,
+            IServiceProvider serviceProvider,
+            DataReaderSheetSetting dataReaderSheetSetting,
+            MetaDataReaderSheetSetting metaDataReaderSheetSetting)
         {
             _mediator = mediator;
             _mappingService = mappingService;
             _serviceProvider = serviceProvider;
+            _dataReaderSheetSetting = dataReaderSheetSetting;
+            _metaDataReaderSheetSetting = metaDataReaderSheetSetting;
         }
 
 
@@ -66,7 +74,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         private WorkspaceViewModel? _workspaceViewModel;
 
         [RelayCommand(CanExecute = nameof(IsNoBlock))]
-        private async Task Test()
+        private Task Test()
         {
             //var moneys = _unitOfWork.MoneyCellModels;
             //var headings = _unitOfWork.HeadingCellModels;
@@ -104,6 +112,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             //{
             //    IsLoading = false;
             //}
+            return Task.CompletedTask;
         }
 
 
@@ -138,7 +147,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         }
 
         [RelayCommand]
-        private void LoadWorkspace()
+        private async Task LoadWorkspace()
         {
             try
             {
@@ -151,14 +160,87 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
 
                 if (dialog.ShowDialog() == true)
                 {
-                    MessageBox.Show("OK");
+                    var model = JsonConvert.DeserializeObject<WorkspaceModel>(File.ReadAllText(dialog.FileName)) ?? throw new Exception("Không thể đọc file workspace");
+                    IsLoading = true;
+                    Status = "Đang khởi tạo dữ liệu từ file số hóa...";
+                    await HandleReadWorkspace(model);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
+            finally
+            {
+                Status = string.Empty;
+                IsLoading = false;
+            }
         }
+
+        private async Task HandleReadWorkspace(WorkspaceModel model)
+        {
+            try
+            {
+                WorkspaceViewModel = new(_serviceProvider)
+                {
+                    Name = model.Name,
+                    WorkspaceInitStatus = WorkspaceInitStatus.ReadFromJson,
+                };
+
+                var mutex = new Mutex();
+                var tasks = new List<Task>();
+
+                var fileImports = WorkspaceViewModel.FileImportFsNoteModels;
+                foreach(var item in model.FileImports)
+                {
+                    if (!CheckValidFileName(item.SourcePath))
+                    {
+                        continue;
+                    }
+                    tasks.Add(Task.Run(async () =>
+                    {
+                        var file = new FileInfo(item.SourcePath);
+                        try
+                        {
+                            await using var fs = file.OpenRead();
+                            var workbook = await Task.Run(() => new HSSFWorkbook(fs));
+                            var fileImport = new FileImportFsNoteModel()
+                            {
+                                Name = file.Name,
+                                SourcePath = file.FullName,
+                            };
+                            await LoadDataFromImportWorkbook(workbook, fileImport);
+
+                            mutex.WaitOne();
+                            try
+                            {
+                                fileImports.Add(fileImport);
+                            }
+                            finally
+                            {
+                                mutex.ReleaseMutex();
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            return;
+                        }
+                    }));
+                }
+                await Task.WhenAll(tasks);
+                WorkspaceViewModel.FileImportFsNoteModels = [];
+                foreach (var item in fileImports)
+                {
+                    WorkspaceViewModel.FileImportFsNoteModels.Add(item);
+                }
+                MessageBox.Show("Đã đọc xong tất cả các file", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+
         private async Task HandleReadAllExcelFiles(string[] fileNames)
         {
             try
@@ -183,7 +265,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                             Name = file.Name,
                             SourcePath = file.FullName,
                         };
-                        LoadDataFromImportWorkbook(workbook, ref fileImport);
+                        await LoadDataFromImportWorkbook(workbook, fileImport);
                         fileImports.Add(fileImport);
                     }
                     catch (Exception)
@@ -227,7 +309,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         /// </summary>
         /// <param name="workbook"></param>
         /// <param name="fileImports"></param>
-        private static void LoadDataFromImportWorkbook(HSSFWorkbook workbook, ref FileImportFsNoteModel fileImport)
+        private async Task LoadDataFromImportWorkbook(HSSFWorkbook workbook, FileImportFsNoteModel fileImport)
         {
             var sheetRegex = new Regex(@"^TM[1-6]$");
             fileImport.FsNoteSheets = [];
@@ -246,7 +328,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                 };
                 try
                 {
-                    LoadDataFromSheet(sheet, workbook, ref sheetModel);
+                    await LoadDataFromSheet(sheet, workbook, sheetModel);
                     //fileImports.FsNoteSheets.Add(sheetName, sheetModel);
                 }
                 catch (Exception ex)
@@ -268,32 +350,26 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         /// </summary>
         /// <param name="sheet"></param>
         /// <param name="sheetFsNoteModel"></param>
-        private static void LoadDataFromSheet(ISheet sheet, HSSFWorkbook workbook, ref SheetFsNoteModel sheetFsNoteModel)
+        private async Task LoadDataFromSheet(ISheet sheet, HSSFWorkbook workbook, SheetFsNoteModel sheetFsNoteModel)
         {
             LoadSheetInfo(sheet, ref sheetFsNoteModel);
 
-            const int COL_NOTE_ID = 3;
-            const int COL_CHECK_PARENT_NOTE = 2;
-            const int COL_NOTE_NAME = 4;
-            const int COL_NOTE_PARENT_VALUE = 6;
-            const int START_ROW_INDEX = 14;
-            const int COL_NOTE_VALUE = 5;
-            sheetFsNoteModel.Data = new();
+            sheetFsNoteModel.Data = [];
             int currentParentId = 0;
-            for (int i = START_ROW_INDEX; i <= sheet.LastRowNum; i++)
+            for (int i = _dataReaderSheetSetting.CheckParentAddress.Row; i <= sheet.LastRowNum; i++)
             {
                 try
                 {
                     var row = sheet.GetRow(i);
                     if (row == null) continue;
-                    if (!IsValidCell(row, COL_NOTE_NAME, COL_NOTE_ID))
+                    if (!LoadReferenceFsNoteDataHandler.IsValidCell(row, _dataReaderSheetSetting.NameAddress.Col, _dataReaderSheetSetting.NoteIdAddress.Col))
                     {
                         continue;
                     }
-                    int noteId = (int)row.GetCell(COL_NOTE_ID).NumericCellValue;
-                    string name = row.GetCell(COL_NOTE_NAME).ToString()!;
+                    int noteId = (int)row.GetCell(_dataReaderSheetSetting.NoteIdAddress.Col).NumericCellValue;
+                    string name = row.GetCell(_dataReaderSheetSetting.NameAddress.Col).ToString()!;
 
-                    var cellCheckParent = row.GetCell(COL_CHECK_PARENT_NOTE);
+                    var cellCheckParent = row.GetCell(_dataReaderSheetSetting.CheckParentAddress.Col);
 
                     if (cellCheckParent == null)
                     {
@@ -319,34 +395,12 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                 }
                 catch (Exception)
                 {
-
                     throw;
                 }
             }
-
-            var uow = new UnitOfWorkModel();
-            var reqLoadInputData = new LoadReferenceFsNoteDataRequest(workbook, sheetFsNoteModel.SheetName!, ref uow);
-            sheetFsNoteModel.UowAbbyy14.FsNoteParentModels.AddRange(uow.FsNoteParentModels.Select(x => x.DeepClone()));
-            sheetFsNoteModel.UowAbbyy15.FsNoteParentModels.AddRange(uow.FsNoteParentModels.Select(x => x.DeepClone()));
-        }
-
-        private static bool IsValidCell(IRow row, int colName, int colNoteId)
-        {
-            if (row == null)
-            {
-                return false;
-            }
-
-            string? name = row.GetCell(colName).ToString();
-            // kiểm tra nếu ô màu đỏ thì bỏ qua
-            var cellColor = row.GetCell(colName).CellStyle.FillForegroundColorColor;
-            Color colorTarget = Color.FromArgb(cellColor.RGB[0], cellColor.RGB[1], cellColor.RGB[2]);
-
-            bool validName = !string.IsNullOrEmpty(name);
-            bool validNoteId = int.TryParse(row.GetCell(colNoteId).ToString(), out int noteId) && noteId != 0;
-            bool validColor = !CoreUtils.IsColorInRangeRed(colorTarget);
-
-            return validName && validNoteId && validColor;
+            var rawData = sheetFsNoteModel.RawDataImport;
+            var reqLoadInputData = new LoadReferenceFsNoteDataRequest(workbook, sheetFsNoteModel.SheetName!, ref rawData);
+            await _mediator.Send(reqLoadInputData);
         }
 
         /// <summary>
@@ -354,33 +408,33 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         /// </summary>
         /// <param name="sheet"></param>
         /// <param name="sheetFsNoteModel"></param>
-        private static void LoadSheetInfo(ISheet sheet, ref SheetFsNoteModel sheetFsNoteModel)
+        private void LoadSheetInfo(ISheet sheet, ref SheetFsNoteModel sheetFsNoteModel)
         {
             sheetFsNoteModel.StockCode =
-                sheet.GetRow(SheetFsNoteModel.MetaData.StockRowIndex)
-                .GetCell(SheetFsNoteModel.MetaData.MetaDataColIndex)?.StringCellValue ?? string.Empty;
+                sheet.GetRow(_metaDataReaderSheetSetting.StockCodeAddress.Row)
+                .GetCell(_metaDataReaderSheetSetting.StockCodeAddress.Col)?.StringCellValue ?? string.Empty;
 
             sheetFsNoteModel.ReportTerm =
-                sheet.GetRow(SheetFsNoteModel.MetaData.ReportTermRowIndex)
-                .GetCell(SheetFsNoteModel.MetaData.MetaDataColIndex)?.StringCellValue ?? string.Empty;
+                sheet.GetRow(_metaDataReaderSheetSetting.ReportTermAddress.Row)
+                .GetCell(_metaDataReaderSheetSetting.ReportTermAddress.Col)?.StringCellValue ?? string.Empty;
 
-            sheetFsNoteModel.Year = (int)sheet.GetRow(SheetFsNoteModel.MetaData.YearRowIndex)
-                .GetCell(SheetFsNoteModel.MetaData.MetaDataColIndex)?.NumericCellValue;
+            sheetFsNoteModel.Year = (int)(sheet.GetRow(_metaDataReaderSheetSetting.YearAddress.Row)
+                .GetCell(_metaDataReaderSheetSetting.YearAddress.Col)?.NumericCellValue ?? 0);
 
             sheetFsNoteModel.AuditedStatus =
-                sheet.GetRow(SheetFsNoteModel.MetaData.AuditedStatusRowIndex)
-                .GetCell(SheetFsNoteModel.MetaData.MetaDataColIndex)?.StringCellValue ?? string.Empty;
+                sheet.GetRow(_metaDataReaderSheetSetting.AuditedStatusAddress.Row)
+                .GetCell(_metaDataReaderSheetSetting.AuditedStatusAddress.Col)?.StringCellValue ?? string.Empty;
 
             sheetFsNoteModel.ReportType =
-                sheet.GetRow(SheetFsNoteModel.MetaData.ReportTypeRowIndex)
-                .GetCell(SheetFsNoteModel.MetaData.MetaDataColIndex)?.StringCellValue ?? string.Empty;
+                sheet.GetRow(_metaDataReaderSheetSetting.ReportTypeAddress.Row)
+                .GetCell(_metaDataReaderSheetSetting.ReportTypeAddress.Col)?.StringCellValue ?? string.Empty;
 
             sheetFsNoteModel.Unit =
-                sheet.GetRow(SheetFsNoteModel.MetaData.UnitRowIndex)
-                .GetCell(SheetFsNoteModel.MetaData.MetaDataColIndex)?.StringCellValue ?? string.Empty;
+                sheet.GetRow(_metaDataReaderSheetSetting.UnitAddress.Row)
+                .GetCell(_metaDataReaderSheetSetting.UnitAddress.Col)?.StringCellValue ?? string.Empty;
 
-            var fileUrlCell = sheet.GetRow(SheetFsNoteModel.MetaData.FileUrlRowIndex)
-                .GetCell(SheetFsNoteModel.MetaData.FileUrlColIndex);
+            var fileUrlCell = sheet.GetRow(_metaDataReaderSheetSetting.FileUrlAddress.Row)
+                .GetCell(_metaDataReaderSheetSetting.FileUrlAddress.Col);
 
             if (fileUrlCell?.Hyperlink != null)
             {
