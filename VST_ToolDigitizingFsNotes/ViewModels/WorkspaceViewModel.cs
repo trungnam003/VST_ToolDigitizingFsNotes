@@ -63,6 +63,34 @@ public partial class WorkspaceViewModel : ObservableObject
     [ObservableProperty]
     private FileImportFsNoteModel? _selectedFileImport;
 
+    partial void OnSelectedFileImportChanged(FileImportFsNoteModel? value)
+    {
+        if(value != null)
+        {
+            var sheets = value.FsNoteSheets.Select(x => x.Key).ToList() ?? [];
+            Sheets = new ObservableCollection<string>(sheets);
+        }
+
+    }
+
+    [ObservableProperty]
+    private ObservableCollection<SheetFsNoteDataModel>? _dataSelected;
+
+    [ObservableProperty]
+    private ObservableCollection<string>? _sheets;
+
+    [ObservableProperty]
+    private string _selectedSheetName = string.Empty;
+
+    partial void OnSelectedSheetNameChanged(string value)
+    {
+        var d = value;
+        if(SelectedFileImport != null && SelectedFileImport.FsNoteSheets.ContainsKey(value))
+        {
+            DataSelected = new ObservableCollection<SheetFsNoteDataModel>(SelectedFileImport.FsNoteSheets[value].Data);
+        }
+    }
+
     [RelayCommand]
     private void SelectFileImport(FileImportFsNoteModel selected)
     {

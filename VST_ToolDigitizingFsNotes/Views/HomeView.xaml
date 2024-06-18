@@ -71,10 +71,17 @@
             </Grid>
             <GridSplitter Grid.Column="1" Width="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
             <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"></RowDefinition>
+                </Grid.RowDefinitions>
                 <GroupBox Header="File được chọn" Margin="5">
-                    <StackPanel Orientation="Vertical">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"></RowDefinition>
+                            <RowDefinition Height="*"></RowDefinition>
+                        </Grid.RowDefinitions>
                         <StackPanel>
-                            <TextBlock Text="{Binding WorkspaceViewModel.SelectedFileImport.Name}" FontWeight="Bold" FontSize="12" Margin="5"/>
+                            <TextBlock Text="{Binding WorkspaceViewModel.SelectedFileImport.Name}" FontWeight="Bold" FontSize="12" Margin="5" Height="16px"/>
                         </StackPanel>
                         <Grid VerticalAlignment="Stretch">
                             <Grid.RowDefinitions>
@@ -83,7 +90,8 @@
                             </Grid.RowDefinitions>
                             <StackPanel Grid.Row="0" Orientation="Horizontal">
                                 <Label>Chọn TM:</Label>
-                                <ComboBox Width="64" Margin="5"/>
+                                <ComboBox Width="140" Margin="5" ItemsSource="{Binding WorkspaceViewModel.Sheets}" SelectedItem="{Binding WorkspaceViewModel.SelectedSheetName}">
+                                </ComboBox>
                             </StackPanel>
                             <Grid Grid.Row="1">
                                 <Grid.RowDefinitions>
@@ -91,12 +99,18 @@
                                     <RowDefinition Height="*"></RowDefinition>
                                 </Grid.RowDefinitions>
                                 <StackPanel Grid.Row="0"></StackPanel>
-                                <DataGrid Grid.Row="1">
-
-                                </DataGrid>
+                                <ScrollViewer VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
+                                    <DataGrid Grid.Row="1" ItemsSource="{Binding WorkspaceViewModel.DataSelected}" AutoGenerateColumns="False">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Id" Binding="{Binding Id}"></DataGridTextColumn>
+                                            <DataGridTextColumn Header="Tên chỉ tiêu" Binding="{Binding Name}"></DataGridTextColumn>
+                                            <DataGridTextColumn Header="Giá trị" Binding="{Binding TotalValue}"></DataGridTextColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </ScrollViewer>
                             </Grid>
                         </Grid>
-                    </StackPanel>
+                    </Grid>
                 </GroupBox>
             </Grid>
         </Grid>
