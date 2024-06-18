@@ -168,9 +168,6 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         }
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
     public class FsNoteCellModel : MatrixCellModel
     {
         public int NoteId { get; set; }

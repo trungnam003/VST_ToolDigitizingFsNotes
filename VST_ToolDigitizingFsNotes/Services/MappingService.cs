@@ -139,7 +139,7 @@ public class MappingService : IMappingService
         {
             return;
         }
-        Debug.WriteLine(dataMap!.FsNoteParentModel.Name);
+        //Debug.WriteLine(dataMap!.FsNoteParentModel.Name);
         foreach (var range in ranges)
         {
             var suggests = range.ListTextCellSuggestModels;
@@ -165,7 +165,7 @@ public class MappingService : IMappingService
                 var debug = 1;
             }
         }
-        Debug.WriteLine("---------------------------------");
+        //Debug.WriteLine("---------------------------------");
     }
     private void HandleMappingRowDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
     {

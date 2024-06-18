@@ -101,7 +101,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
             evaluators.ListMapEvaluators.Add(evaluator);
             evaluators.MoneyCellMapped.Add(money);  
             evaluators.TextCellMapped.Add(suggestInRowFirst);
-            Debug.WriteLine($">> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+            //Debug.WriteLine($">> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
         }
 
         if(evaluators.ListMapEvaluators.Count != 0)
@@ -146,7 +146,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
                         evaluators.ListMapEvaluators.Add(evaluator);
                         evaluators.MoneyCellMapped.Add(money);  
                         evaluators.TextCellMapped.Add(textCellMinDistance);
-                        Debug.WriteLine($">> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+                        //Debug.WriteLine($">> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
                     }
                 }
                 if (evaluators.ListMapEvaluators.Count == request.ListMoneyCells.Count)
@@ -202,7 +202,7 @@ public class MapInColHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
             evaluators.ListMapEvaluators.Add(evaluator);
             evaluators.MoneyCellMapped.Add(money);  
             evaluators.TextCellMapped.Add(suggestInColFirst);
-            Debug.WriteLine($">> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+            //Debug.WriteLine($">> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
         }
 
         if(evaluators.ListMapEvaluators.Count != 0)

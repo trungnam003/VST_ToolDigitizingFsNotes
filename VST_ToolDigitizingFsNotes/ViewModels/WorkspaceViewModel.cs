@@ -271,23 +271,31 @@ public partial class WorkspaceViewModel
         sheet.UowAbbyy14 = new UnitOfWorkModel();
         sheet.UowAbbyy14.FsNoteParentModels.Clear();
         sheet.UowAbbyy14.FsNoteParentModels.AddRange(sheet.RawDataImport.Select(x => x.DeepClone()));
+        var startWatch = Stopwatch.StartNew();
+        var t1 =  HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
+        var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
 
-        await HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
-        await HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
+        await t1;
+        await t2;
+        startWatch.Stop();
+        Debug.WriteLine($"(1) Time elapsed: {startWatch.ElapsedMilliseconds} ms");
+
     }
 
     public async Task HandleSingleAsync(string ocrPath, UnitOfWorkModel uow)
     {
-        await using var fsOcr15 = new FileStream(ocrPath, FileMode.Open, FileAccess.Read);
-        var workbookOcr = await Task.Run(() => new XSSFWorkbook(fsOcr15));
+       
+        await using var fsOcr = new FileStream(ocrPath, FileMode.Open, FileAccess.Read);
+        var workbookOcr = await Task.Run(() => new XSSFWorkbook(fsOcr));
         uow.OcrWorkbook = workbookOcr;
         {
-            fsOcr15.Close();
-            fsOcr15.Dispose();
+            fsOcr.Close();
+            fsOcr.Dispose();
         }
         var reqDetectData = new DetectDataRequest(ref uow);
         var taskDetectData = await _mediator.Send(reqDetectData);
-        _detectService.GroupFsNoteDataRange(uow);
+        _detectService.StartDetectFsNotesAsync(uow);
+
     }
     #endregion
 }

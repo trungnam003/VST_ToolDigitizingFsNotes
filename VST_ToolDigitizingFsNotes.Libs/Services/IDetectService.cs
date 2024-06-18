@@ -9,5 +9,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Services
         void DetectMoneys(string cellValue, ICell cell, ref List<MoneyCellModel> moneys);
 
         void GroupFsNoteDataRange(UnitOfWorkModel model);
+
+        void StartDetectFsNotesAsync(UnitOfWorkModel uow, CancellationToken cancellationToken = default);
     }
 }
