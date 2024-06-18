@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using VST_ToolDigitizingFsNotes.AppMain.Services;
 using VST_ToolDigitizingFsNotes.Libs.Common;
 using VST_ToolDigitizingFsNotes.Libs.Handlers;
 using VST_ToolDigitizingFsNotes.Libs.Models;
@@ -29,9 +30,11 @@ public partial class WorkspaceViewModel : ObservableObject
     private readonly UserSettings _userSettings;
     private readonly IMediator _mediator;
     private readonly IPdfService _pdfService;
+    private readonly IDetectService _detectService;
+    private readonly IMappingService _mappingService;
     public readonly WorkspaceMetadata workspaceMetadata;
 
-    public WorkspaceViewModel(IServiceProvider serviceProvider)
+    public WorkspaceViewModel(IServiceProvider serviceProvider, string? dir = null)
     {
         _serviceProvider = serviceProvider;
         _workspaceService = _serviceProvider.GetRequiredService<IWorkspaceService>();
@@ -39,10 +42,13 @@ public partial class WorkspaceViewModel : ObservableObject
         _userSettings = _serviceProvider.GetRequiredService<UserSettings>();
         _mediator = _serviceProvider.GetRequiredService<IMediator>();
         _pdfService = _serviceProvider.GetRequiredService<IPdfService>();
+        _detectService = _serviceProvider.GetRequiredService<IDetectService>();
+        _mappingService = _serviceProvider.GetRequiredService<IMappingService>();
         Name = _workspaceService.GenerateName();
         workspaceMetadata = new WorkspaceMetadata
         {
-            Name = Name
+            Name = Name,
+            Path = dir ?? string.Empty
         };
     }
 
@@ -72,7 +78,8 @@ public partial class WorkspaceViewModel : ObservableObject
                 return;
             }
             _homeViewModel.IsLoading = true;
-            if(WorkspaceInitStatus == WorkspaceInitStatus.CreateNew)
+            await _mappingService.LoadMapping();
+            if (WorkspaceInitStatus == WorkspaceInitStatus.CreateNew)
             {
                 InitWorkspaceFolder();
                 var model = new WorkspaceModel()
@@ -82,8 +89,12 @@ public partial class WorkspaceViewModel : ObservableObject
                 };
                 await _workspaceService.SaveWorkspace(workspaceMetadata, model);
             }
+            else
+            {
+                workspaceMetadata.Name = Name;
+            }
             await Task.Delay(100);
-            //await HandleFileImportsAsync();
+            await HandleFileImportsAsync();
 
         }
         catch (Exception ex)
@@ -121,6 +132,8 @@ public partial class WorkspaceViewModel
             /// Lặp qua từng sheet
             foreach (var key in file.FsNoteSheets)
             {
+                if (!string.IsNullOrEmpty(key.Value.ErrorMessage))
+                    continue;
                 try
                 {
                     _homeViewModel.Status = $"Đang xử lý sheet {key.Key} trong file {file.Name}";
@@ -141,31 +154,39 @@ public partial class WorkspaceViewModel
     {
         ArgumentNullException.ThrowIfNullOrEmpty(sheet.FileUrl, "FileUrl is null or empty");
 
-        var sheetMetadata = sheet.Meta = new();
         var fileName = Path.GetFileName(sheet.FileUrl);
-
-        sheetMetadata.FilePdfFsPath = Path.Combine(workspaceMetadata.PdfDownloadPath, fileName);
-        sheetMetadata.FileOcrV11Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V11.xlsx");
-        sheetMetadata.FileOcrV14Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V14.xlsx");
-        sheetMetadata.FileOcrV15Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V15.xlsx");
-
-        using var client = new DownloadFileHttpClient();
-        using var stream = await client.DownloadFileStreamAsync(sheet.FileUrl);
-
-        using var fileStream = new FileStream(sheetMetadata.FilePdfFsPath, FileMode.Create, FileAccess.Write);
-        await stream.CopyToAsync(fileStream);
+        var sheetMetadata = sheet.Meta = new()
         {
-            /// Đóng stream và filestream để giải phóng cho phép các process ABBYY sử dụng file
-            stream.Close();
-            fileStream.Close();
-            stream.Dispose();
-            fileStream.Dispose();
-            client.Dispose();
-        }
-        var totalPage = await _pdfService.GetPdfPageCountAsync(sheetMetadata.FilePdfFsPath);
-        var splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 30, totalPage);
+            FilePdfFsPath = Path.Combine(workspaceMetadata.PdfDownloadPath, fileName),
+            FileOcrV11Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V11.xlsx"),
+            FileOcrV14Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V14.xlsx"),
+            FileOcrV15Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V15.xlsx"),
+        };
 
-        sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
+        if(File.Exists(sheetMetadata.FilePdfFsPath))
+        {
+            sheetMetadata.IsDownloaded = true;
+        }
+        else
+        {
+            using var client = new DownloadFileHttpClient();
+            using var stream = await client.DownloadFileStreamAsync(sheet.FileUrl);
+
+            using var fileStream = new FileStream(sheetMetadata.FilePdfFsPath, FileMode.Create, FileAccess.Write);
+            await stream.CopyToAsync(fileStream);
+            {
+                /// Đóng stream và filestream để giải phóng cho phép các process ABBYY sử dụng file
+                stream.Close();
+                fileStream.Close();
+                stream.Dispose();
+                fileStream.Dispose();
+                client.Dispose();
+            }
+            var totalPage = await _pdfService.GetPdfPageCountAsync(sheetMetadata.FilePdfFsPath);
+            var splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 30, totalPage);
+            sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
+        }
+        
         var tasks = new List<Task>();
         /// ABBYY 11
         //var abbyy11String = new AbbyyCmdString.Builder()
@@ -178,35 +199,53 @@ public partial class WorkspaceViewModel
         //var p11 = new AbbyyCmdManager(abbyy11String).StartAbbyyProcess();
         //var t11 = p11.WaitForExitAsync();
         //tasks.Add(t11);
-        /// ABBYY 14
-        var abbyy14String = new AbbyyCmdString.Builder()
-            .SetAbbyyPath(_userSettings.Abbyy14Path!)
-            .SetInputPath(sheetMetadata.FilePdfFsPath)
-            .SetOutputPath(sheetMetadata.FileOcrV14Path)
-            .SetQuitOnDone(true)
-            .UseVietnameseLanguge()
-            .Build();
-        var p14 = new AbbyyCmdManager(abbyy14String).StartAbbyyProcess();
-        var t14 = p14.WaitForExitAsync();
-        tasks.Add(t14);
-        /// ABBYY 15
-        var abbyy15String = new AbbyyCmdString.Builder()
-            .SetAbbyyPath(_userSettings.Abbyy15Path!)
-            .SetInputPath(sheetMetadata.FilePdfFsPath)
-            .SetOutputPath(sheetMetadata.FileOcrV15Path)
-            .SetQuitOnDone(true)
-            .UseVietnameseLanguge()
-            .Build();
-        var p15 = new AbbyyCmdManager(abbyy15String).StartAbbyyProcess();
-        var t15 = p15.WaitForExitAsync();
-        tasks.Add(t15);
 
-        _homeViewModel.Status = $"Đang OCR file {fileName} (11)(14)(15)";
-        await Task.WhenAll(tasks);
+        if (File.Exists(sheetMetadata.FileOcrV14Path))
+        {
+            sheetMetadata.IsFileOcrV14Created = true;
+        }
+        else
+        {
+            /// ABBYY 14
+            var abbyy14String = new AbbyyCmdString.Builder()
+                .SetAbbyyPath(_userSettings.Abbyy14Path!)
+                .SetInputPath(sheetMetadata.FilePdfFsPath)
+                .SetOutputPath(sheetMetadata.FileOcrV14Path)
+                .SetQuitOnDone(true)
+                .UseVietnameseLanguge()
+                .Build();
+            var p14 = new AbbyyCmdManager(abbyy14String).StartAbbyyProcess();
+            var t14 = p14.WaitForExitAsync();
+            tasks.Add(t14);
+        }
 
-        //sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV14Path);
-        sheetMetadata.IsFileOcrV14Created = File.Exists(sheetMetadata.FileOcrV14Path);
-        sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
+        if (File.Exists(sheetMetadata.FileOcrV15Path))
+        {
+            sheetMetadata.IsFileOcrV15Created = true;
+        }
+        else
+        {
+            /// ABBYY 15
+            var abbyy15String = new AbbyyCmdString.Builder()
+                .SetAbbyyPath(_userSettings.Abbyy15Path!)
+                .SetInputPath(sheetMetadata.FilePdfFsPath)
+                .SetOutputPath(sheetMetadata.FileOcrV15Path)
+                .SetQuitOnDone(true)
+                .UseVietnameseLanguge()
+                .Build();
+            var p15 = new AbbyyCmdManager(abbyy15String).StartAbbyyProcess();
+            var t15 = p15.WaitForExitAsync();
+            tasks.Add(t15);
+        }
+
+        if(tasks.Count > 0)
+        {
+            _homeViewModel.Status = $"Đang OCR file {fileName} (11)(14)(15)";
+            await Task.WhenAll(tasks);
+            //sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV14Path);
+            sheetMetadata.IsFileOcrV14Created = File.Exists(sheetMetadata.FileOcrV14Path);
+            sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
+        }
         await HandleMultiTaskAsync(sheet);
     }
 
@@ -248,6 +287,7 @@ public partial class WorkspaceViewModel
         }
         var reqDetectData = new DetectDataRequest(ref uow);
         var taskDetectData = await _mediator.Send(reqDetectData);
+        _detectService.GroupFsNoteDataRange(uow);
     }
     #endregion
 }

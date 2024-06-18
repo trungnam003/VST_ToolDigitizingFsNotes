@@ -126,7 +126,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
 
         public override string ToString()
         {
-            var str = $"{Row}:{Col} - {CellValue}";
+            var str = $"[{Row}:{Col}] - [{SymbolSection}] {ContentSection}";
             return str;
         }
     }

@@ -163,7 +163,9 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                     var model = JsonConvert.DeserializeObject<WorkspaceModel>(File.ReadAllText(dialog.FileName)) ?? throw new Exception("Không thể đọc file workspace");
                     IsLoading = true;
                     Status = "Đang khởi tạo dữ liệu từ file số hóa...";
-                    await HandleReadWorkspace(model);
+                    // get directory of workspace file
+                    var directory = Path.GetDirectoryName(dialog.FileName);
+                    await HandleReadWorkspace(model, directory!);
                 }
             }
             catch (Exception ex)
@@ -177,11 +179,11 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             }
         }
 
-        private async Task HandleReadWorkspace(WorkspaceModel model)
+        private async Task HandleReadWorkspace(WorkspaceModel model, string dir)
         {
             try
             {
-                WorkspaceViewModel = new(_serviceProvider)
+                WorkspaceViewModel = new(_serviceProvider, dir)
                 {
                     Name = model.Name,
                     WorkspaceInitStatus = WorkspaceInitStatus.ReadFromJson,

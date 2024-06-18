@@ -93,8 +93,8 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         public List<SheetFsNoteDataModel> Data { get; set; } = [];
         public string? ErrorMessage { get; set; }
         public MetaData? Meta { get; set; }
-        
-        public List<FsNoteParentModel> RawDataImport { get; set; }  
+
+        public List<FsNoteParentModel> RawDataImport { get; set; } = [];
 
         public string Information
         {
