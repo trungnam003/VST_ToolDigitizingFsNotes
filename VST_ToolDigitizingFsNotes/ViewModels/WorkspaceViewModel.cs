@@ -69,6 +69,7 @@ public partial class WorkspaceViewModel : ObservableObject
         {
             var sheets = value.FsNoteSheets.Select(x => x.Key).ToList() ?? [];
             Sheets = new ObservableCollection<string>(sheets);
+            SelectedSheetName = sheets.FirstOrDefault() ?? string.Empty;
         }
 
     }
@@ -81,20 +82,30 @@ public partial class WorkspaceViewModel : ObservableObject
 
     [ObservableProperty]
     private string _selectedSheetName = string.Empty;
+    [ObservableProperty]
+    private string _selectedSheetInfomation = string.Empty;
+
 
     partial void OnSelectedSheetNameChanged(string value)
     {
-        var d = value;
-        if(SelectedFileImport != null && SelectedFileImport.FsNoteSheets.ContainsKey(value))
+        Task.Run(() => LoadDataAsync(value));
+    }
+
+    private Task LoadDataAsync(string key)
+    {
+        if (!string.IsNullOrEmpty(key) && SelectedFileImport != null && SelectedFileImport.FsNoteSheets.TryGetValue(key, out SheetFsNoteModel? value) )
         {
-            DataSelected = new ObservableCollection<SheetFsNoteDataModel>(SelectedFileImport.FsNoteSheets[value].Data);
+            SelectedSheetInfomation = value.Information;
+            DataSelected = [.. value.Data];
         }
+        return Task.CompletedTask;
     }
 
     [RelayCommand]
     private void SelectFileImport(FileImportFsNoteModel selected)
     {
     }
+
     [RelayCommand]
     private async Task Start()
     {

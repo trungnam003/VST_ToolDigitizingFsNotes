@@ -575,17 +575,38 @@ public partial class DetectService
             //ProcessingDeterminesMoneysInRange(uow, dataMap);
             //ProcessingDetectChildrentFsNotesInRange(uow, dataMap);
 
-            foreach(var range in dataMap.RangeDetectFsNotes)
+            foreach (var range in dataMap.RangeDetectFsNotes)
             {
-                ProcessingDetectDataInRange(range, uow);
+                ProcessingDetectDataInRange(range, dataMap, uow);
             }
 
             _mappingService.MapFsNoteWithMoney(uow, dataMap);
         }
     }
 
-    private void ProcessingDetectDataInRange(RangeDetectFsNote range, UnitOfWorkModel uow)
+    private void ProcessingDetectDataInRange(RangeDetectFsNote range, FsNoteDataMap dataMap, UnitOfWorkModel uow)
     {
+        var moneyCellTarget = range.MoneyCellModel;
+        var moneysInRange = uow.MoneyCellModels
+                .Where(x => x.Row >= range.Start.Row && x.Row <= range.End.Row)
+                // không duyệt số tiền của chỉ tiêu cha, operator != đã được custom lại
+                .Where(x => x != moneyCellTarget)
+                .ToList();
+        var request = new SpecifyMoneyInRangeEqualWithParentRequest(uow, dataMap);
+        var handler1 = new SpecifyMoneyInRangeEqualWithParentHandle(moneysInRange, moneyCellTarget);
+        var handler2 = new SpecifyAllMoneyInRangeHandle(moneysInRange, moneyCellTarget);
 
+        handler1.SetNext(handler2);
+        handler1.Handle(request);
+
+        if (request.Result != null && request.Handled)
+        {
+            range.MoneyResults = request.Result;
+        }
+        else
+        {
+            range.MoneyResults = null;
+            range.DetectRangeStatus = DetectRangeStatus.RequireDetectAgain;
+        }
     }
 }
