@@ -1,4 +1,5 @@
-﻿using VST_ToolDigitizingFsNotes.Libs.Chains;
+﻿using System.Diagnostics;
+using VST_ToolDigitizingFsNotes.Libs.Chains;
 using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Models;
@@ -48,5 +49,42 @@ public class SpecifyMoneyResult
     public List<List<MoneyCellModel>> DataCols { get; set; } = [];
     public bool HasDataRows => DataRows.Count > 0;
     public bool HasDataCols => DataCols.Count > 0;
+
+    
 }
 
+public static class RangeExtensions
+{
+    public static void LogToDebug(this SpecifyMoneyResult money)
+    {
+        Debug.WriteLine("Số tiền quét được bằng tổng");
+        if (money.HasDataRows)
+        {
+            Debug.WriteLine("Tiền theo dòng\n");
+            foreach (var row in money.DataRows)
+            {
+                Debug.WriteLine(string.Join("\t", row.Select(x => x.CellValue)));
+            }
+        }
+
+        if(money.HasDataCols)
+        {
+            Debug.WriteLine("Tiền theo cột\n");
+            foreach (var col in money.DataCols)
+            {
+                Debug.WriteLine(string.Join("\t", col.Select(x => x.CellValue)));
+            }
+        }
+        Debug.WriteLine("");
+    }
+
+    public static void LogToDebug(this List<TextCellSuggestModel> models)
+    {
+        Debug.WriteLine("Danh sách các chỉ tiêu con tìm thấy");
+        foreach (var model in models)
+        {
+            Debug.WriteLine($"\t{model}");
+        }
+        Debug.WriteLine("");
+    }
+}

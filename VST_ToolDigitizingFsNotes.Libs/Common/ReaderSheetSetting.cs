@@ -1,5 +1,15 @@
 ﻿namespace VST_ToolDigitizingFsNotes.Libs.Common;
 
+public class DataReaderMapSetting
+{
+    public required Matrix NoteIdAddress { get; set; }
+    public required Matrix NameAddress { get; set; }
+    public required Matrix CheckParentAddress { get; set; }
+    public required Matrix KeywordsAddress { get; set; }
+    public required Matrix KeywordExtensionAddress { get; set; }
+    public required Matrix OtherAddress { get; set; }
+}
+
 public class DataReaderSheetSetting
 {
     public required Matrix NoteIdAddress { get; set; }
@@ -40,7 +50,7 @@ public class Matrix
         Col = c;
     }
 
-    public static Matrix ExcelAddressToMatrix(string address)
+    public static Matrix FromExcelAddress(string address)
     {
         // A1 -> Col = 0, Row = 0
         // B2 -> Col = 1, Row = 1

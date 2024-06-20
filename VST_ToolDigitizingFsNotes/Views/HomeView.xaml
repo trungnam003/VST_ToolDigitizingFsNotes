@@ -104,7 +104,17 @@
                                   VirtualizingStackPanel.IsVirtualizing="True"
                                   VirtualizingStackPanel.VirtualizationMode="Recycling"
                                   EnableRowVirtualization="True"
-                                  EnableColumnVirtualization="True">            
+                                  EnableColumnVirtualization="True">
+                            <DataGrid.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsParent}" Value="True">
+                                            <Setter Property="Background" Value="#A7E6FF" />
+                                            <Setter Property="Foreground" Value="Black" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.CellStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Id" Binding="{Binding Id}"></DataGridTextColumn>
                                 <DataGridTextColumn Header="Tên chỉ tiêu" Binding="{Binding Name}"></DataGridTextColumn>

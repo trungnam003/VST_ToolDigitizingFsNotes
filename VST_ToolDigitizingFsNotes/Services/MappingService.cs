@@ -1,6 +1,5 @@
 ﻿using Force.DeepCloner;
 using NPOI.XSSF.UserModel;
-using System.Diagnostics;
 using System.IO;
 using VST_ToolDigitizingFsNotes.Libs.Chains;
 using VST_ToolDigitizingFsNotes.Libs.Common;
@@ -26,10 +25,12 @@ public class MappingService : IMappingService
 
     private readonly Dictionary<int, FsNoteParentMappingModel> _mapping;
     private readonly UserSettings _userSettings;
-    public MappingService(Dictionary<int, FsNoteParentMappingModel> mapping, UserSettings userSettings)
+    private readonly DataReaderMapSetting _dataReaderMapSetting;
+    public MappingService(Dictionary<int, FsNoteParentMappingModel> mapping, UserSettings userSettings, DataReaderMapSetting dataReaderMapSetting)
     {
         _mapping = mapping;
         _userSettings = userSettings;
+        _dataReaderMapSetting = dataReaderMapSetting;
     }
 
     public async Task LoadMapping()
@@ -134,12 +135,11 @@ public class MappingService : IMappingService
 
     public void MapFsNoteWithMoney(UnitOfWorkModel uow, FsNoteDataMap dataMap)
     {
-        var ranges = dataMap?.RangeDetectFsNotes?.Where(x => x.DetectRangeStatus == DetectRangeStatus.AllowNextHandle).ToList();
+        var ranges = dataMap.RangeDetectFsNotes?.Where(x => x.DetectRangeStatus == DetectRangeStatus.AllowNextHandle).ToList();
         if (ranges == null || ranges.Count == 0)
         {
             return;
         }
-        //Debug.WriteLine(dataMap!.FsNoteParentModel.Name);
         foreach (var range in ranges)
         {
             var suggests = range.ListTextCellSuggestModels;
@@ -159,15 +159,14 @@ public class MappingService : IMappingService
             {
                 HandleMappingColumnDirection(uow, dataMap, range);
             }
-            else if (direction == Direction.Unknown 
+            else if (direction == Direction.Unknown
                 && input.Count == 1)
             {
                 var debug = 1;
             }
         }
-        //Debug.WriteLine("---------------------------------");
     }
-    private void HandleMappingRowDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
+    private static void HandleMappingRowDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
     {
         if (range.MoneyResults == null)
         {
@@ -185,7 +184,7 @@ public class MappingService : IMappingService
             handler1.Handle(request);
         }
     }
-    private void HandleMappingColumnDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
+    private static void HandleMappingColumnDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
     {
         if (range.MoneyResults == null)
         {
@@ -201,6 +200,85 @@ public class MappingService : IMappingService
             var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones);
             var handler1 = new MapInRowHandler();
             handler1.Handle(request);
+        }
+    }
+
+    public void CombineUnitOfWorks(UnitOfWorkModel uow)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task LoadMapping2()
+    {
+        var fileMapping = ValidateFileMapping();
+        _mapping.Clear();
+        await LoadMapping2(fileMapping);
+    }
+
+    private async Task LoadMapping2(FileInfo fileInfo)
+    {
+        await using var fs = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
+        using var workbook = await Task.Run(() => new XSSFWorkbook(fs));
+        var sheet = workbook.GetSheetAt(0) ?? throw new ArgumentNullException("Sheet is null");
+        int currentParentId = -1;
+        Dictionary<int, int> countGroup = [];
+
+        int startRow = _dataReaderMapSetting.NoteIdAddress.Row;
+        for (var i = startRow; i <= sheet.LastRowNum; i++)
+        {
+            var row = sheet.GetRow(i) ?? throw new ArgumentNullException("Row is null");
+
+            var noteId = row.GetCell(_dataReaderMapSetting.NoteIdAddress.Col).NumericCellValue;
+            var name = row.GetCell(_dataReaderMapSetting.NameAddress.Col).StringCellValue;
+            var isParent = FsNoteMappingBase.Parent.Equals(row.GetCell(_dataReaderMapSetting.CheckParentAddress.Col).StringCellValue.ToLower().Trim());
+            var keyword = row.GetCell(_dataReaderMapSetting.KeywordsAddress.Col)?.StringCellValue ?? string.Empty;
+            var extensionKeyword = row.GetCell(_dataReaderMapSetting.KeywordExtensionAddress.Col)?.StringCellValue ?? string.Empty;
+            var other = row.GetCell(_dataReaderMapSetting.OtherAddress.Col)?.StringCellValue ?? string.Empty;
+
+            if (isParent)
+            {
+                var previousParentId = currentParentId;
+                currentParentId = (int)noteId;
+
+                if (_mapping.TryGetValue(currentParentId, out FsNoteParentMappingModel? value) && currentParentId == previousParentId)
+                {
+                    countGroup[currentParentId]++;
+                    value.Children.Add([]);
+                    value.TotalGroup = countGroup[currentParentId];
+                    continue;
+                }
+                _mapping.Add((int)noteId, new FsNoteParentMappingModel
+                {
+                    Id = (int)noteId,
+                    Name = name,
+                    Keywords = [.. keyword.Split(',').Select(x => x.Trim())],
+                    KeywordExtensions = [.. extensionKeyword.Split(',').Select(x => x.Trim())],
+                    Children = [[]],
+                    IsDisabled = FsNoteMappingBase.Disabled.Equals(keyword),
+                    TotalGroup = 0
+                });
+                countGroup.Add(currentParentId, 0);
+            }
+            else
+            {
+                var parentId = currentParentId;
+                var isFormula = keyword.Equals(FsNoteMappingBase.Formula);
+                var otherType = FsNoteMappingBase.ToMappingOtherType(other != string.Empty ? other[0] : ' ');
+                var isOther = otherType != MappingOtherType.None;
+                var parent = _mapping[parentId];
+                var child = new FsNoteMappingModel
+                {
+                    Id = (int)noteId,
+                    Name = name,
+                    Keywords = [.. keyword.Split(',').Select(x => x.Trim())],
+                    KeywordExtensions = [.. extensionKeyword.Split(',').Select(x => x.Trim())],
+                    ParentId = parentId,
+                    IsFormula = isFormula,
+                    IsOther = isOther,
+                    OtherType = otherType
+                };
+                parent.Children[parent.TotalGroup].Add(child);
+            }
         }
     }
 }

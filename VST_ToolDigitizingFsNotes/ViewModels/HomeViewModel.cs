@@ -44,7 +44,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             IsLoading = true;
             try
             {
-                await _mappingService.LoadMapping();
+                await _mappingService.LoadMapping2();
             }
             catch (Exception ex)
             {
@@ -74,8 +74,9 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
         private WorkspaceViewModel? _workspaceViewModel;
 
         [RelayCommand(CanExecute = nameof(IsNoBlock))]
-        private Task Test()
+        private async Task Test()
         {
+            await LoadMapping();
             //var moneys = _unitOfWork.MoneyCellModels;
             //var headings = _unitOfWork.HeadingCellModels;
             //try
@@ -112,7 +113,6 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
             //{
             //    IsLoading = false;
             //}
-            return Task.CompletedTask;
         }
 
 

@@ -70,6 +70,49 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
                 return false;
             return char.IsLower(s[0]);
         }
+
+        /// <summary>
+        /// Xóa các dấu ngoặc và nội dung bên trong nó
+        /// </summary>
+        public static string RemoveAllInParentheses(string s, string moreOpen = "", string moreClose = "")
+        {
+            var stack = new Stack<char>();
+            var sb = new StringBuilder();
+
+            string open = "(" + moreOpen;
+            string close = ")" + moreClose;
+
+            foreach(char c in s)
+            {
+                if(open.Contains(c))
+                {
+                    stack.Push(c);
+                }
+                else if(close.Contains(c))
+                {
+                    if(stack.Count > 0)
+                    {
+                        stack.Pop();
+                    }
+                    else
+                    {
+                        sb.Append(c);
+                    }
+                }
+                else if(stack.Count == 0)
+                {
+                    sb.Append(c);
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        public static bool ContainParentheses(this string s)
+        {
+            var regex = new Regex(@"\(([^)]*)\)");
+            return regex.IsMatch(s);
+        }
     }
 
     public static partial class StringUtils

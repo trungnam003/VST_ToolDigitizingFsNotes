@@ -50,7 +50,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain
             {
                 services.AddSingleton(provider => new MainWindow()
                 {
-                    DataContext = provider.GetRequiredService<MainViewModel>()
+                    DataContext = provider.GetRequiredService<MainViewModel>(),
                 });
             }
 
@@ -110,6 +110,19 @@ namespace VST_ToolDigitizingFsNotes.AppMain
                         ReportTypeAddress = new(6, metaCol), // F7
                         UnitAddress = new(9, metaCol), // F10
                         FileUrlAddress = new(0, metaCol), // F1
+                    };
+                });
+
+                services.AddSingleton<DataReaderMapSetting>(provider =>
+                {
+                    return new()
+                    {
+                        NoteIdAddress = Matrix.FromExcelAddress("A2"), // A2
+                        NameAddress = Matrix.FromExcelAddress("B2"), // B2
+                        CheckParentAddress = Matrix.FromExcelAddress("C2"), // C2
+                        KeywordsAddress = Matrix.FromExcelAddress("D2"), // D2
+                        KeywordExtensionAddress = Matrix.FromExcelAddress("E2"), // E2
+                        OtherAddress = Matrix.FromExcelAddress("F2"), // F2
                     };
                 });
 

@@ -1,7 +1,25 @@
 ﻿namespace VST_ToolDigitizingFsNotes.Libs.Models
 {
+    public enum MappingOtherType
+    {
+        None,
+        All,
+        Negative,
+        Positive,
+    }
     public abstract class FsNoteMappingBase
     {
+
+        public static MappingOtherType ToMappingOtherType(char c)
+        {
+            return c switch
+            {
+                '*' => MappingOtherType.All,
+                '-' => MappingOtherType.Negative,
+                '+' => MappingOtherType.Positive,
+                _ => MappingOtherType.None,
+            };
+        }
         public const string Formula = "#";
         public const string Other = "*";
         public const string Disabled = "x";
@@ -19,6 +37,7 @@
         public int ParentId { get; set; }
         public bool IsFormula { get; set; }
         public bool IsOther { get; set; }
+        public MappingOtherType OtherType { get; set; } = MappingOtherType.None;
     }
 
     public class FsNoteParentMappingModel : FsNoteMappingBase

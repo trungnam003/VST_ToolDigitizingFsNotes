@@ -8,7 +8,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
-using VST_ToolDigitizingFsNotes.AppMain.Services;
 using VST_ToolDigitizingFsNotes.Libs.Common;
 using VST_ToolDigitizingFsNotes.Libs.Handlers;
 using VST_ToolDigitizingFsNotes.Libs.Models;
@@ -65,7 +64,7 @@ public partial class WorkspaceViewModel : ObservableObject
 
     partial void OnSelectedFileImportChanged(FileImportFsNoteModel? value)
     {
-        if(value != null)
+        if (value != null)
         {
             var sheets = value.FsNoteSheets.Select(x => x.Key).ToList() ?? [];
             Sheets = new ObservableCollection<string>(sheets);
@@ -93,7 +92,7 @@ public partial class WorkspaceViewModel : ObservableObject
 
     private Task LoadDataAsync(string key)
     {
-        if (!string.IsNullOrEmpty(key) && SelectedFileImport != null && SelectedFileImport.FsNoteSheets.TryGetValue(key, out SheetFsNoteModel? value) )
+        if (!string.IsNullOrEmpty(key) && SelectedFileImport != null && SelectedFileImport.FsNoteSheets.TryGetValue(key, out SheetFsNoteModel? value))
         {
             SelectedSheetInfomation = value.Information;
             DataSelected = [.. value.Data];
@@ -117,7 +116,7 @@ public partial class WorkspaceViewModel : ObservableObject
                 return;
             }
             _homeViewModel.IsLoading = true;
-            await _mappingService.LoadMapping();
+            await _mappingService.LoadMapping2();
             if (WorkspaceInitStatus == WorkspaceInitStatus.CreateNew)
             {
                 InitWorkspaceFolder();
@@ -202,7 +201,7 @@ public partial class WorkspaceViewModel
             FileOcrV15Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V15.xlsx"),
         };
 
-        if(File.Exists(sheetMetadata.FilePdfFsPath))
+        if (File.Exists(sheetMetadata.FilePdfFsPath))
         {
             sheetMetadata.IsDownloaded = true;
         }
@@ -225,7 +224,7 @@ public partial class WorkspaceViewModel
             var splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 30, totalPage);
             sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
         }
-        
+
         var tasks = new List<Task>();
         /// ABBYY 11
         //var abbyy11String = new AbbyyCmdString.Builder()
@@ -277,7 +276,7 @@ public partial class WorkspaceViewModel
             tasks.Add(t15);
         }
 
-        if(tasks.Count > 0)
+        if (tasks.Count > 0)
         {
             _homeViewModel.Status = $"Đang OCR file {fileName} (11)(14)(15)";
             await Task.WhenAll(tasks);
@@ -311,11 +310,11 @@ public partial class WorkspaceViewModel
         sheet.UowAbbyy14.FsNoteParentModels.Clear();
         sheet.UowAbbyy14.FsNoteParentModels.AddRange(sheet.RawDataImport.Select(x => x.DeepClone()));
         var startWatch = Stopwatch.StartNew();
-        var t1 =  HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
-        var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
+        var t1 = HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
+        //var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
 
         await t1;
-        await t2;
+        //await t2;
         startWatch.Stop();
         Debug.WriteLine($"(1) Time elapsed: {startWatch.ElapsedMilliseconds} ms");
 
@@ -323,7 +322,7 @@ public partial class WorkspaceViewModel
 
     public async Task HandleSingleAsync(string ocrPath, UnitOfWorkModel uow)
     {
-       
+
         await using var fsOcr = new FileStream(ocrPath, FileMode.Open, FileAccess.Read);
         var workbookOcr = await Task.Run(() => new XSSFWorkbook(fsOcr));
         uow.OcrWorkbook = workbookOcr;

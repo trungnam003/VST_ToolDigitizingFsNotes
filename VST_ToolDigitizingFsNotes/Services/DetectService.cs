@@ -511,6 +511,8 @@ public partial class DetectService
     {
         foreach (var parent in uow.FsNoteParentModels)
         {
+            Debug.WriteLine("==================================================================");
+            Debug.WriteLine($"Xử lý chỉ tiêu: {parent.Name}");
             var parentValue = (parent.Value);
             List<MoneyCellModel> listMoneysEqualParentValue = uow.MoneyCellModels
                .Where(money => Math.Abs(money.Value) == Math.Abs(parent.Value))
@@ -524,6 +526,8 @@ public partial class DetectService
                 FsNoteParentModel = parent
             };
             HandleDetectFsNoteParentAsync(uow, parent, fsNoteDataMap, listMoneysEqualParentValue);
+            _mappingService.MapFsNoteWithMoney(uow, fsNoteDataMap);
+            Debug.WriteLine("==================================================================\n");
         }
     }
 
@@ -533,6 +537,7 @@ public partial class DetectService
         _mapping.TryGetValue(parent.FsNoteId, out var mapParentData);
         if (mapParentData == null || mapParentData.IsDisabled)
         {
+            Debug.WriteLine("=> bỏ qua xử lý");
             return;
         }
         RangeDetectFsNote? prevRangeSpecified = null;
@@ -568,23 +573,23 @@ public partial class DetectService
         dataMap.RangeDetectFsNotes = results.Count > 0 ? results : null;
         dataMap.MapStatus = results.Count > 0 ? MapFsNoteStatus.CanMap : MapFsNoteStatus.NotYetMapped;
 
-        if (dataMap.RangeDetectFsNotes != null
-                    && dataMap.RangeDetectFsNotes.Count > 0
-                    && dataMap.MapStatus == MapFsNoteStatus.CanMap)
+        if (dataMap.RangeDetectFsNotes != null && dataMap.RangeDetectFsNotes.Count > 0 && dataMap.MapStatus == MapFsNoteStatus.CanMap)
         {
-            //ProcessingDeterminesMoneysInRange(uow, dataMap);
-            //ProcessingDetectChildrentFsNotesInRange(uow, dataMap);
-
             foreach (var range in dataMap.RangeDetectFsNotes)
             {
-                ProcessingDetectDataInRange(range, dataMap, uow);
+                ProcessingDetectMoneyInRange(range, dataMap, uow);
+                ProcessingDetectChildrentFsNotesInRange(range, dataMap, uow);
+            }
+            if (dataMap.RangeDetectFsNotes.Count == dataMap.RangeDetectFsNotes.Count(x => x.DetectRangeStatus == DetectRangeStatus.RequireDetectAgain))
+            {
+                dataMap.MapStatus = MapFsNoteStatus.RequireMapAgain;
             }
 
-            _mappingService.MapFsNoteWithMoney(uow, dataMap);
+            //_mappingService.MapFsNoteWithMoney(uow, dataMap);
         }
     }
 
-    private void ProcessingDetectDataInRange(RangeDetectFsNote range, FsNoteDataMap dataMap, UnitOfWorkModel uow)
+    private void ProcessingDetectMoneyInRange(RangeDetectFsNote range, FsNoteDataMap dataMap, UnitOfWorkModel uow)
     {
         var moneyCellTarget = range.MoneyCellModel;
         var moneysInRange = uow.MoneyCellModels
@@ -602,10 +607,139 @@ public partial class DetectService
         if (request.Result != null && request.Handled)
         {
             range.MoneyResults = request.Result;
+            // debug log
+            
+            range.MoneyResults.LogToDebug();
+           
         }
         else
         {
             range.MoneyResults = null;
+            range.DetectRangeStatus = DetectRangeStatus.RequireDetectAgain;
+        }
+    }
+
+    private void ProcessingDetectChildrentFsNotesInRange(RangeDetectFsNote range, FsNoteDataMap dataMap, UnitOfWorkModel uow)
+    {
+        _mapping.TryGetValue(dataMap.FsNoteId, out var currentMapping);
+        if (currentMapping == null)
+        {
+            return;
+        }
+        var childrentMappings = currentMapping.Children[dataMap!.Group - 1];
+
+        if (dataMap.RangeDetectFsNotes == null || dataMap.RangeDetectFsNotes.Count == 0)
+        {
+            return;
+        }
+        var workbook = uow.OcrWorkbook;
+        List<TextCellSuggestModel> textCellSuggestModels = [];
+        if (range.DetectRangeStatus != DetectRangeStatus.AllowNextHandle)
+        {
+            return;
+        }
+
+        var startRow = range.Start.Row;
+        var endRow = range.End.Row;
+        //Debug.WriteLine(currentMapping.Name);
+        //Debug.WriteLine($"{startRow} : {endRow}");
+        var ignoreCell = new HashSet<string>();
+        for (int i = startRow; i <= endRow; i++)
+        {
+            IRow? row = workbook?.GetSheetAt(0).GetRow(i);
+            IRow? bottomRow = i < endRow ? workbook?.GetSheetAt(0).GetRow(i + 1) : null;
+            if (row == null)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < row.LastCellNum; j++)
+            {
+                var ignoreStartCell = (i == startRow && j == range.Start.Col)
+                    && range.DetectStartRangeStatus == DetectStartRangeStatus.SkipStringSimilarity;
+
+                // Xử lý loại bỏ heading hoặc heading đã được kết hợp với ô khác
+                var isHeadingAndHasCombineCell = range.Start.GetType() == typeof(HeadingCellModel)
+                    && ((HeadingCellModel)range.Start).CombineWithCell != null;
+
+                var currentCellIsCombineCell = isHeadingAndHasCombineCell
+                    && ((HeadingCellModel)range.Start).CombineWithCell?.Row == i
+                    && ((HeadingCellModel)range.Start).CombineWithCell?.Col == j;
+
+                var cell = row.GetCell(j);
+                var cellValue = cell.ToString()?.ToSimilarityCompareString();
+
+                if (ignoreStartCell || currentCellIsCombineCell 
+                    || ignoreCell.Contains($"{i}:{j}") || cell == null || string.IsNullOrWhiteSpace(cellValue))
+                {
+                    continue;
+                }
+                var bottomCell = bottomRow?.GetCell(j) ?? null;
+                var bottomCellValue = bottomCell?.ToString();
+                var cellValueCombineWithCellValueBottom = cellValue;
+                bool allowCombine = false;
+                // Kết hợp với text phía dưới để tăng khả năng nhận diện chính xác hơn vì có chỉ tiêu xuống dòng
+                if (!string.IsNullOrWhiteSpace(bottomCellValue) && StringUtils.StartWithLower(bottomCellValue))
+                {
+                    var bottomCellValueNormalize = bottomCellValue.ToSimilarityCompareString();
+                    cellValueCombineWithCellValueBottom = cellValue + " " + bottomCellValueNormalize;
+                    allowCombine = true;
+                }
+
+                var cellSuggest = Test(childrentMappings, cellValue, i, j);
+                var cellSuggestCombine = allowCombine ? Test(childrentMappings, cellValueCombineWithCellValueBottom, i, j) : null;
+                if (cellSuggestCombine != null)
+                {
+                    cellSuggestCombine.CombineWithCell = new()
+                    {
+                        Row = i + 1,
+                        Col = j,
+                        CellValue = bottomCellValue ?? ""
+                    };
+                }
+
+                var hasSuggest = cellSuggest != null || cellSuggestCombine != null;
+
+                if (hasSuggest)
+                {
+                    if (cellSuggest != null && cellSuggestCombine != null)
+                    {
+                        if (cellSuggest.Similarity > cellSuggestCombine.Similarity)
+                        {
+                            //Debug.WriteLine(cellSuggest);
+                            textCellSuggestModels.Add(cellSuggest);
+                        }
+                        else
+                        {
+                            //Debug.WriteLine(cellSuggestCombine);
+                            ignoreCell.Add($"{i + 1}:{j}");
+                            textCellSuggestModels.Add(cellSuggestCombine);
+                        }
+                    }
+                    else if (cellSuggestCombine != null)
+                    {
+                        //Debug.WriteLine(cellSuggestCombine);
+                        ignoreCell.Add($"{i + 1}:{j}");
+                        textCellSuggestModels.Add(cellSuggestCombine);
+                    }
+                    else if (cellSuggest != null)
+                    {
+                        //Debug.WriteLine(cellSuggest);
+                        textCellSuggestModels.Add(cellSuggest);
+                    }
+                }
+            }
+        }
+        if (textCellSuggestModels.Count > 0)
+        {
+            range.ListTextCellSuggestModels = textCellSuggestModels;
+            // log to debug
+           
+            range.ListTextCellSuggestModels.LogToDebug();
+           
+        }
+        else
+        {
             range.DetectRangeStatus = DetectRangeStatus.RequireDetectAgain;
         }
     }
