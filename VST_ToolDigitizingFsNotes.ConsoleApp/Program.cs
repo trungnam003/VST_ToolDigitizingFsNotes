@@ -10,7 +10,7 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        //var str1 = "56.958.465.910.163";
+        //var str1 = "61 113706.898";
 
         //var matches01 = DetectUtils.MoneyRegex001().Matches(str1);
         //var matches02 = DetectUtils.MoneyRegex002().Matches(str1);
@@ -24,7 +24,8 @@ internal class Program
         //{
         //    var model = new MoneyCellModel
         //    {
-        //        Row = 0, Col = 0,
+        //        Row = 0,
+        //        Col = 0,
         //        CellValue = match.Value,
         //        IndexInCell = index1++,
         //    };
@@ -53,7 +54,7 @@ internal class Program
         //Console.WriteLine("MoneySoftRegex001");
         //var list3 = new List<MoneyCellModel>();
         //var index3 = 0;
-        //foreach (Match match in matches03.Cast<Match>()) 
+        //foreach (Match match in matches03.Cast<Match>())
         //{
         //    var model = new MoneyCellModel
         //    {
@@ -87,25 +88,19 @@ internal class Program
         //task2.Wait();
         //var pageCount2 = task2.Result;
 
-        var abc = new ABC()
-        {
-            Lst = [1, 2, 3, 4]
-        };
-        var abc2 = new ABC()
-        {
-            Lst = [1, 2, 3, 4]
-        };
+        // random list 27 length 
 
-        var abcs = new ABCs()
+        var str = "Tổng doanh thu ■ Bán thành phầm ■ Bán hàng hóa ■ Các dịch vụ khác ■ Cho thuê bất động sản đầu tư ■ Doanh thu khác";
+        var listStr = new List<string>()
         {
-            Lst = [abc, abc2]
+            "ban thanh pham", "toi yeu viet nam"
         };
 
-        var abcs2 = abcs.DeepClone();
-        abcs2.Lst[0].Lst[0] = 100;
+        var newStr = str.ToSimilarityCompareString();
 
-        Console.WriteLine(abcs.Lst[0].Lst[0]);
-        Console.WriteLine(abcs2.Lst[0].Lst[0]);
+        var ok = StringSimilarityUtils.TryFindStringSimilarityFromPlainText(newStr, listStr[1], out var output);
+        Console.WriteLine(ok + " " + output);
+
     }
 }
 
@@ -119,15 +114,15 @@ public class ABCs
     public required List<ABC> Lst { get; set; }
 }
 
-public class CompareMoneyCellModel : IEqualityComparer<MoneyCellModel>
+public class CompareMoneyCellModel2 : IEqualityComparer<MoneyCellModel>
 {
     public bool Equals(MoneyCellModel? x, MoneyCellModel? y)
     {
-        return x == y;
+        return x != null && y != null && x.Value == y.Value;
     }
 
     public int GetHashCode(MoneyCellModel obj)
     {
-        return obj.GetHashCode();
+        return HashCode.Combine(obj.Value);
     }
 }

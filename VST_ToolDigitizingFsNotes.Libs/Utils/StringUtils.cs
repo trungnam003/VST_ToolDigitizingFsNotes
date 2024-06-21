@@ -26,6 +26,11 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             return NormalCharacterRegex().Replace(s, "");
         }
 
+        public static string RemoveSpecialCharactersVi(this string s)
+        {
+            return ViNormalCharacterRegex().Replace(s, "");
+        }
+
         public static string KeepCharacterOnly(this string s)
         {
             return CharacterOnlyRegex().Replace(s, "");
@@ -46,6 +51,9 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
 
         [GeneratedRegex("[^a-zA-Z0-9_.\\s]+", RegexOptions.Compiled)]
         private static partial Regex NormalCharacterRegex();
+
+        [GeneratedRegex("[^a-z0-9A-Z_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễếệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ\\s]+", RegexOptions.Compiled)]
+        private static partial Regex ViNormalCharacterRegex();
 
         [GeneratedRegex("[^a-zA-Z\\s]+", RegexOptions.Compiled)]
         private static partial Regex CharacterOnlyRegex();
@@ -82,15 +90,15 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             string open = "(" + moreOpen;
             string close = ")" + moreClose;
 
-            foreach(char c in s)
+            foreach (char c in s)
             {
-                if(open.Contains(c))
+                if (open.Contains(c))
                 {
                     stack.Push(c);
                 }
-                else if(close.Contains(c))
+                else if (close.Contains(c))
                 {
-                    if(stack.Count > 0)
+                    if (stack.Count > 0)
                     {
                         stack.Pop();
                     }
@@ -99,7 +107,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
                         sb.Append(c);
                     }
                 }
-                else if(stack.Count == 0)
+                else if (stack.Count == 0)
                 {
                     sb.Append(c);
                 }
@@ -113,6 +121,47 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             var regex = new Regex(@"\(([^)]*)\)");
             return regex.IsMatch(s);
         }
+
+
+        public static List<int> GetIndexSentenceCase(string s)
+        {
+            var index = new List<int>();
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (char.IsUpper(s[i]) && i + 1 < s.Length && char.IsLower(s[i + 1]))
+                {
+                    index.Add(i);
+                }
+            }
+            return index;
+        }
+
+        public static List<string> SplitSentenceCase(string s)
+        {
+            var indexes = GetIndexSentenceCase(s);
+            var list = new List<string>();
+            if (indexes.Count == 0)
+            {
+                list.Add(s);
+                return list;
+            }
+
+            int start = 0;
+            for(int i = 0; i< indexes.Count; i++)
+            {
+                // split from start to index[i+1]
+                var end = i + 1 < indexes.Count ? indexes[i + 1] : s.Length;
+                list.Add(s[start..end].Trim());
+                start = end;
+            }
+            list.Add(s[start..]);
+            return list;
+        }
+
+        //public static bool HasSentenceCase(string s)
+        //{
+        //    var regex = new Regex(@"[A-Z][a-z]");
+        //}
     }
 
     public static partial class StringUtils

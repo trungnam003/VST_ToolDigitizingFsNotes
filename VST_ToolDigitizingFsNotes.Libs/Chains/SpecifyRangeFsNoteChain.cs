@@ -313,7 +313,8 @@ public class DetectUsingDiffMatchPatchStringHandler : HandleChainBase<DetectRang
                 results.Enqueue(new MatrixCellModel()
                 {
                     Row = i,
-                    Col = FIRST_COL
+                    Col = FIRST_COL,
+                    CellValue = cell.ToString()
                 }, i);
             }
         }

@@ -1,6 +1,4 @@
-﻿
-
-namespace VST_ToolDigitizingFsNotes.Libs.Models
+﻿namespace VST_ToolDigitizingFsNotes.Libs.Models
 {
     /// <summary>
     /// Base Class cho dữ liệu của một ô trong bảng
@@ -17,7 +15,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
             return $"{Row}:{Col} - {CellValue}";
         }
 
-        
+
     }
 
     /// <summary>
@@ -220,12 +218,12 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     {
         public bool Equals(MoneyCellModel? x, MoneyCellModel? y)
         {
-            return x == y;
+            return x != null && y != null && x.Value == y.Value && x.Col == y.Col && x.Row == y.Row;
         }
 
         public int GetHashCode(MoneyCellModel obj)
         {
-            return obj.GetHashCode();
+            return HashCode.Combine(obj.Value, obj.Row, obj.Col);
         }
     }
 }

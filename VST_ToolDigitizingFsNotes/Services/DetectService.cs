@@ -511,7 +511,7 @@ public partial class DetectService
     {
         foreach (var parent in uow.FsNoteParentModels)
         {
-            Debug.WriteLine("==================================================================");
+            Debug.WriteLine("============================ Bắt đầu ==============================");
             Debug.WriteLine($"Xử lý chỉ tiêu: {parent.Name}");
             var parentValue = (parent.Value);
             List<MoneyCellModel> listMoneysEqualParentValue = uow.MoneyCellModels
@@ -527,7 +527,7 @@ public partial class DetectService
             };
             HandleDetectFsNoteParentAsync(uow, parent, fsNoteDataMap, listMoneysEqualParentValue);
             _mappingService.MapFsNoteWithMoney(uow, fsNoteDataMap);
-            Debug.WriteLine("==================================================================\n");
+            Debug.WriteLine("============================ Kết thúc ============================\n");
         }
     }
 
@@ -610,7 +610,6 @@ public partial class DetectService
             // debug log
             
             range.MoneyResults.LogToDebug();
-           
         }
         else
         {
