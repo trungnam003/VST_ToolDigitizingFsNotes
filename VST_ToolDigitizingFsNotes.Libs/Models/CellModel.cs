@@ -143,7 +143,10 @@
         public double Similarity { get; set; } = 0.0;
         public MatrixCellModel? CombineWithCell { get; set; }
 
+        public int IndexInCell { get; set; } = 0;
+
         public override MatrixCellType CellType { get; set; } = MatrixCellType.Text;
+
 
         public bool Equals(TextCellSuggestModel? other)
         {

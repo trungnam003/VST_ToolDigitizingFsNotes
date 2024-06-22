@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using VST_ToolDigitizingFsNotes.Libs.Chains;
 using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Models;
@@ -18,12 +17,15 @@ public class RangeDetectFsNote
     public required MatrixCellModel Start { get; set; }
     public required MatrixCellModel End { get; set; }
     public required MoneyCellModel MoneyCellModel { get; set; }
-    
+
     public SpecifyMoneyResult? MoneyResults { get; set; }
+
     public List<TextCellSuggestModel>? ListTextCellSuggestModels { get; set; }
 
-    
+    public HashSet<string> IgnoreCells { get; } = [];
+
     public DetectRangeStatus DetectRangeStatus { get; set; } = DetectRangeStatus.NotYetDetected;
+
     public DetectStartRangeStatus DetectStartRangeStatus { get; set; } = DetectStartRangeStatus.SkipStringSimilarity;
 
     public override string ToString()
@@ -41,6 +43,11 @@ public class RangeDetectFsNote
         Start = start;
         End = end;
     }
+
+    public bool AddCellToIgnore(int i, int j) => IgnoreCells.Add($"{i},{j}");
+
+    public bool IsIgnoreCell(int i, int j) => IgnoreCells.Contains($"{i},{j}");
+   
 }
 
 public class SpecifyMoneyResult
@@ -50,7 +57,7 @@ public class SpecifyMoneyResult
     public bool HasDataRows => DataRows.Count > 0;
     public bool HasDataCols => DataCols.Count > 0;
 
-    
+
 }
 
 public static class RangeExtensions
@@ -67,7 +74,7 @@ public static class RangeExtensions
             }
         }
 
-        if(money.HasDataCols)
+        if (money.HasDataCols)
         {
             Debug.WriteLine("Tiền theo cột\n");
             foreach (var col in money.DataCols)

@@ -158,10 +158,11 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             return list;
         }
 
-        //public static bool HasSentenceCase(string s)
-        //{
-        //    var regex = new Regex(@"[A-Z][a-z]");
-        //}
+        public static bool Has2OrMoreSentenceCase(string s)
+        {
+            var regex = new Regex(@"[A-Z][a-z]");
+            return regex.Matches(s).Count >= 2;
+        }
     }
 
     public static partial class StringUtils

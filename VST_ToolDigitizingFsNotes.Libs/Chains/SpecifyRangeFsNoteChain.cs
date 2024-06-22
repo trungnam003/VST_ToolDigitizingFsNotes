@@ -100,6 +100,9 @@ public class DetectUsingHeadingHandler : HandleChainBase<DetectRangeChainRequest
                     Col = lastCellNum
                 },
             };
+            // thêm vào danh sách các ô cần bỏ qua
+            request.Result.AddCellToIgnore(nearestHeading.Row, nearestHeading.Col);
+            _ = nearestHeading.CombineWithCell != null && request.Result.AddCellToIgnore(nearestHeading.CombineWithCell.Row, nearestHeading.CombineWithCell.Col);
             request.SetHandled(true);
             return;
         }
@@ -176,6 +179,8 @@ public class DetectUsingSimilartyStringHanlder : HandleChainBase<DetectRangeChai
                 Col = lastCellNum
             }
         };
+        // thêm vào danh sách các ô cần bỏ qua
+        request.Result.AddCellToIgnore(first.Row, first.Col);
         request.SetHandled(true);
     }
 
