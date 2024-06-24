@@ -3,7 +3,11 @@ using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.AppMain.Services;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 
+using MicJsonConvert = System.Text.Json.JsonSerializer;
 namespace VST_ToolDigitizingFsNotes.ConsoleApp;
 
 internal class Program
@@ -90,19 +94,73 @@ internal class Program
 
         // random list 27 length 
 
-        var str = "Tổng doanh thu ■ Bán thành phầm ■ Bán hàng hóa ■ Các dịch vụ khác ■ Cho thuê bất động sản đầu tư ■ Doanh thu khác";
-        var listStr = new List<string>()
-        {
-            "ban thanh pham", "toi yeu viet nam"
-        };
+        //var str = "Tổng doanh thu ■ Bán thành phầm ■ Bán hàng hóa ■ Các dịch vụ khác ■ Cho thuê bất động sản đầu tư ■ Doanh thu khác";
+        //var listStr = new List<string>()
+        //{
+        //    "ban thanh pham", "toi yeu viet nam"
+        //};
 
-        var newStr = str.ToSimilarityCompareString();
+        //var newStr = str.ToSimilarityCompareString();
 
-        var ok = StringSimilarityUtils.TryFindStringSimilarityFromPlainText(newStr, listStr[1], out var output);
-        Console.WriteLine(ok + " " + output);
+        //var ok = StringSimilarityUtils.TryFindStringSimilarityFromPlainText(newStr, listStr[1], out var output);
+        //Console.WriteLine(ok + " " + output);
 
+
+        //var s2 = "Chuyển từ hàng tồn kho Thanh lý/xóa so                     (10.684,285.402)";
+
+        //var s3 = s2.RemoveSpecialCharactersVi();
+
+        //var splited = StringUtils.SplitSentenceCase(s3);
+
+        //var output = "";
+
+        //foreach (var item in splited)
+        //{
+        //    output += item.ToSimilarityCompareString() + ", ";
+        //}
+        //JsonConvert.DeserializeObject<object>(output);
+        //Console.WriteLine(output);
+
+
+        //string jsonString = @"{""username"":""dev"",""email"":""thtn.dev@gmail.com"",""roles"":""[\u0022vst_admin_pedia:all:read\u0022,\u0022vst_admin_pedia:all:create\u0022,\u0022vst_admin_pedia:all:update\u0022,\u0022vst_admin_pedia:all:delete\u0022]"",""vst_sso_roles"":""{\u0022ClientId\u0022:\u0022vst_admin_pedia\u0022,\u0022Roles\u0022:{\u0022all\u0022:[\u0022read\u0022,\u0022create\u0022,\u0022update\u0022,\u0022delete\u0022]}}"",""sub"":""dev""}";
+        //jsonString.Replace("\\u0022", "\"");
+        //JsonDocument document = JsonDocument.Parse(jsonString);
+        //JsonElement rootElement = document.RootElement;
+        //UserData? o = JsonConvert.DeserializeObject<UserData>(rootElement.GetRawText());
+
+        //var z = o.GetVstSsoRole();
+        HashSet<(int, int)> devs = new();
+        devs.Add((1, 2));
+
+        var i = devs.Contains((1, 2));
+        Console.WriteLine(i);
     }
 }
+
+//class UserData
+//{
+//    [JsonProperty("username")]
+//    public string Username { get; set; }
+//    [JsonProperty("email")]
+//    public string Email { get; set; }
+//    [JsonProperty("vst_sso_roles")]
+//    public VstSsoRole? VstSsoRole { get; set; }
+
+//    //public VstSsoRole? GetVstSsoRole()
+//    //{
+//    //    // deserialize vst_sso_roles
+//    //    return JsonConvert.DeserializeObject<VstSsoRole>(VstSsoRole);
+//    //}
+
+//}
+
+//public class VstSsoRole
+//{
+//    [JsonProperty("ClientId")]
+//    public string? ClientId { get; set; }
+//    [JsonProperty("Roles")]
+//    public Dictionary<string, List<string>>? Roles;
+//}
 
 public class ABC
 {

@@ -90,19 +90,42 @@ public class DetectUsingHeadingHandler : HandleChainBase<DetectRangeChainRequest
 
         if (nearestHeading != null)
         {
-            request.Result = new RangeDetectFsNote()
+            var isRequireChangeStartRange = request.UnitOfWork.CheckContainSpecifiedRanges(nearestHeading.Row, request.Parent.FsNoteId, out int endRow);
+            if (isRequireChangeStartRange)
             {
-                MoneyCellModel = request.MoneyCell,
-                Start = nearestHeading,
-                End = new MatrixCellModel()
+                request.Result = new RangeDetectFsNote()
                 {
-                    Row = row,
-                    Col = lastCellNum
-                },
-            };
-            // thêm vào danh sách các ô cần bỏ qua
-            request.Result.AddCellToIgnore(nearestHeading.Row, nearestHeading.Col);
-            _ = nearestHeading.CombineWithCell != null && request.Result.AddCellToIgnore(nearestHeading.CombineWithCell.Row, nearestHeading.CombineWithCell.Col);
+                    MoneyCellModel = request.MoneyCell,
+                    Start = new MatrixCellModel()
+                    {
+                        Row = endRow + 1,
+                        Col = 0
+                    },
+                    End = new MatrixCellModel()
+                    {
+                        Row = row,
+                        Col = lastCellNum
+                    },
+                };
+                request.UnitOfWork.AddToSpecifiedRanges(endRow + 1, row, request.Parent.FsNoteId);
+            }
+            else
+            {
+                request.Result = new RangeDetectFsNote()
+                {
+                    MoneyCellModel = request.MoneyCell,
+                    Start = nearestHeading,
+                    End = new MatrixCellModel()
+                    {
+                        Row = row,
+                        Col = lastCellNum
+                    },
+                };
+                // thêm vào danh sách các ô cần bỏ qua
+                request.Result.AddCellToIgnore(nearestHeading.Row, nearestHeading.Col);
+                _ = nearestHeading.CombineWithCell != null && request.Result.AddCellToIgnore(nearestHeading.CombineWithCell.Row, nearestHeading.CombineWithCell.Col);
+                request.UnitOfWork.AddToSpecifiedRanges(nearestHeading.Row, row, request.Parent.FsNoteId);
+            }
             request.SetHandled(true);
             return;
         }
@@ -168,19 +191,42 @@ public class DetectUsingSimilartyStringHanlder : HandleChainBase<DetectRangeChai
         }
 
         var first = queue.Dequeue();
-
-        request.Result = new RangeDetectFsNote()
+        var isRequireChangeStartRange = request.UnitOfWork.CheckContainSpecifiedRanges(first.Row, request.Parent.FsNoteId, out int endRow);
+        if (isRequireChangeStartRange)
         {
-            MoneyCellModel = request.MoneyCell,
-            Start = first,
-            End = new MatrixCellModel()
+            request.Result = new RangeDetectFsNote()
             {
-                Row = row,
-                Col = lastCellNum
-            }
-        };
-        // thêm vào danh sách các ô cần bỏ qua
-        request.Result.AddCellToIgnore(first.Row, first.Col);
+                MoneyCellModel = request.MoneyCell,
+                Start = new MatrixCellModel()
+                {
+                    Row = endRow + 1,
+                    Col = 0
+                },
+                End = new MatrixCellModel()
+                {
+                    Row = row,
+                    Col = lastCellNum
+                },
+            };
+            request.UnitOfWork.AddToSpecifiedRanges(endRow + 1, row, request.Parent.FsNoteId);
+        }
+        else
+        {
+            request.Result = new RangeDetectFsNote()
+            {
+                MoneyCellModel = request.MoneyCell,
+                Start = first,
+                End = new MatrixCellModel()
+                {
+                    Row = row,
+                    Col = lastCellNum
+                }
+            };
+            // thêm vào danh sách các ô cần bỏ qua
+            request.Result.AddCellToIgnore(first.Row, first.Col);
+            request.UnitOfWork.AddToSpecifiedRanges(first.Row, row, request.Parent.FsNoteId);
+        }
+
         request.SetHandled(true);
     }
 
@@ -264,18 +310,40 @@ public class DetectUsingDiffMatchPatchStringHandler : HandleChainBase<DetectRang
             return;
         }
         var first = queue.Dequeue();
-
-        request.Result = new RangeDetectFsNote()
+        var isRequireChangeStartRange = request.UnitOfWork.CheckContainSpecifiedRanges(first.Row, request.Parent.FsNoteId, out int endRow);
+        if (isRequireChangeStartRange)
         {
-            MoneyCellModel = request.MoneyCell,
-            Start = first,
-            End = new MatrixCellModel()
+            request.Result = new RangeDetectFsNote()
             {
-                Row = row,
-                Col = lastCellNum
-            },
-            DetectStartRangeStatus = DetectStartRangeStatus.AllowStringSimilarity
-        };
+                MoneyCellModel = request.MoneyCell,
+                Start = new MatrixCellModel()
+                {
+                    Row = endRow + 1,
+                    Col = 0
+                },
+                End = new MatrixCellModel()
+                {
+                    Row = row,
+                    Col = lastCellNum
+                },
+            };
+            request.UnitOfWork.AddToSpecifiedRanges(endRow + 1, row, request.Parent.FsNoteId);
+        }
+        else
+        {
+            request.Result = new RangeDetectFsNote()
+            {
+                MoneyCellModel = request.MoneyCell,
+                Start = first,
+                End = new MatrixCellModel()
+                {
+                    Row = row,
+                    Col = lastCellNum
+                },
+                DetectStartRangeStatus = DetectStartRangeStatus.AllowStringSimilarity
+            };
+            request.UnitOfWork.AddToSpecifiedRanges(first.Row, row, request.Parent.FsNoteId);
+        }
         request.SetHandled(true);
     }
 
@@ -319,7 +387,7 @@ public class DetectUsingDiffMatchPatchStringHandler : HandleChainBase<DetectRang
                 {
                     Row = i,
                     Col = FIRST_COL,
-                    CellValue = cell.ToString()
+                    CellValue = cell.ToString(),
                 }, i);
             }
         }

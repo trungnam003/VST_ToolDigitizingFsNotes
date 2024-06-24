@@ -45,8 +45,9 @@
                             <Label Content="+ Số lượng file: ">
                             </Label>
                             <Label Content="{Binding WorkspaceViewModel.FileImportFsNoteModels.Count}"></Label>
-                            <Button Content="Chạy số hóa" VerticalAlignment="Center" Margin="15 0" Width="90" Cursor="Hand" IsEnabled="{Binding IsNoBlock}" Command="{Binding WorkspaceViewModel.StartCommand}"/>
+                            <Button Content="Chạy số hóa" VerticalAlignment="Center" Margin="15 0"  Padding="10 0" Cursor="Hand" IsEnabled="{Binding IsNoBlock}" Command="{Binding WorkspaceViewModel.StartCommand}"/>
                             <Label Content="{Binding WorkspaceViewModel.Name}"></Label>
+                            <Button Content="Xuất" VerticalAlignment="Center" Margin="15 0" Padding="10 0" Cursor="Hand" IsEnabled="{Binding IsNoBlock}"/>
                         </StackPanel>
                         <DataGrid x:Name="dgDataImport" ItemsSource="{Binding WorkspaceViewModel.FileImportFsNoteModels}" SelectedItem="{Binding WorkspaceViewModel.SelectedFileImport}"
                                   Grid.Row="1" AutoGenerateColumns="False" 
@@ -109,8 +110,9 @@
                                 <Style TargetType="DataGridCell">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsParent}" Value="True">
-                                            <Setter Property="Background" Value="#A7E6FF" />
+                                            <Setter Property="Background" Value="Gray" />
                                             <Setter Property="Foreground" Value="Black" />
+                                            <Setter Property="FontWeight" Value="Bold" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>

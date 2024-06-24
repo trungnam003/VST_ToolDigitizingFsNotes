@@ -142,11 +142,13 @@
         /// </summary>
         public double Similarity { get; set; } = 0.0;
         public MatrixCellModel? CombineWithCell { get; set; }
+        public MatrixCellModel? RetriveCell { get; set; }
 
         public int IndexInCell { get; set; } = 0;
 
-        public override MatrixCellType CellType { get; set; } = MatrixCellType.Text;
+        public CellStatus CellStatus { get; set; } = CellStatus.Default;
 
+        public override MatrixCellType CellType { get; set; } = MatrixCellType.Text;
 
         public bool Equals(TextCellSuggestModel? other)
         {
@@ -155,7 +157,10 @@
 
         public override string ToString()
         {
-            return $"{CellValue} => {NoteName}";
+            var indexInCell = IndexInCell > 0 ? IndexInCell+"" : "";
+            var retrive = RetriveCell != null ? $"M[{RetriveCell.Row}:{RetriveCell.Col}]" : "";
+            var combine = CombineWithCell != null ? $"C[{CombineWithCell.Row}:{CombineWithCell.Col}]" : "";
+            return $"[{Row}:{Col}] {CellValue} => {NoteName}; {indexInCell}{retrive}{combine}";
         }
 
         public override bool Equals(object? obj)
@@ -167,6 +172,12 @@
         {
             return HashCode.Combine(NoteId, Row, Col, Similarity);
         }
+    }
+    public enum CellStatus
+    {
+        Default,
+        Combine,
+        Merge
     }
 
     public class FsNoteCellModel : MatrixCellModel

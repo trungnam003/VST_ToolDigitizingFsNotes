@@ -285,6 +285,9 @@ public partial class WorkspaceViewModel
             sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
         }
         await HandleMultiTaskAsync(sheet);
+
+        sheet.UowAbbyy14?.Dispose();
+        sheet.UowAbbyy15?.Dispose();
     }
 
     public async Task HandleMultiTaskAsync(SheetFsNoteModel sheet)

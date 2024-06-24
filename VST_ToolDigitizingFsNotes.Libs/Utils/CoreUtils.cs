@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using NPOI.SS.UserModel;
+using System.Drawing;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Utils
 {
@@ -180,6 +181,41 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             double angleDeg = angleRad * (180.0 / Math.PI);
 
             return angleDeg;
+        }
+
+
+        public static List<ICell>? GetListCellInMergeCell(this ICell cell)
+        {
+            if (cell.IsMergedCell)
+            {
+                var sheet = cell.Sheet;
+                var regions = sheet.MergedRegions;
+                List<ICell> mergedCells = [];
+                foreach (var region in regions)
+                {
+                    if (region.IsInRange(cell.RowIndex, cell.ColumnIndex))
+                    {
+                        for (int row = region.FirstRow; row <= region.LastRow; row++)
+                        {
+                            IRow sheetRow = sheet.GetRow(row);
+                            if (sheetRow != null)
+                            {
+                                for (int col = region.FirstColumn; col <= region.LastColumn; col++)
+                                {
+                                    ICell _cell = sheetRow.GetCell(col);
+                                    if (_cell != null)
+                                    {
+                                        mergedCells.Add(_cell);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                   
+                }
+                return mergedCells;
+            }
+            return null;
         }
     }
 }

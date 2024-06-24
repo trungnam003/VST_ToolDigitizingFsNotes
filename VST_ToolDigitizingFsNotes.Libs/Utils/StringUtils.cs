@@ -28,7 +28,8 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
 
         public static string RemoveSpecialCharactersVi(this string s)
         {
-            return ViNormalCharacterRegex().Replace(s, "");
+            s = s.RemoveSign4VietnameseString();
+            return NormalCharacterRegex().Replace(s, "");
         }
 
         public static string KeepCharacterOnly(this string s)
@@ -52,7 +53,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
         [GeneratedRegex("[^a-zA-Z0-9_.\\s]+", RegexOptions.Compiled)]
         private static partial Regex NormalCharacterRegex();
 
-        [GeneratedRegex("[^a-z0-9A-Z_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễếệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ\\s]+", RegexOptions.Compiled)]
+        [GeneratedRegex("[^a-z0-9A-Z_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễếệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵýỷỹ\\s]+", RegexOptions.Compiled)]
         private static partial Regex ViNormalCharacterRegex();
 
         [GeneratedRegex("[^a-zA-Z\\s]+", RegexOptions.Compiled)]
@@ -154,7 +155,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
                 list.Add(s[start..end].Trim());
                 start = end;
             }
-            list.Add(s[start..]);
+            //list.Add(s[start..]);
             return list;
         }
 

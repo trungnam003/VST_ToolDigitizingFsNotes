@@ -1,6 +1,4 @@
-﻿using NPOI.POIFS.Properties;
-using NPOI.SS.UserModel;
-using System;
+﻿using NPOI.SS.UserModel;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Chains;
@@ -609,7 +607,7 @@ public partial class DetectService
         {
             range.MoneyResults = request.Result;
             // debug log
-            
+
             range.MoneyResults.LogToDebug();
         }
         else
@@ -676,18 +674,24 @@ public partial class DetectService
                     continue;
                 }
 
-                TryCheckCellChildIsFsNote1(textCellSuggestModels, bottomRow, i, j, cellValue, childrentMappings, range);
-                TryCheckCellChildIsFsNote2(textCellSuggestModels, bottomRow, i, j, cell.ToString()!, childrentMappings, range);
-
+                var rs1 = TryCheckCellChildIsFsNote1(bottomRow, i, j, cellValue, childrentMappings, range);
+                var rs2 = TryCheckCellChildIsFsNote2(i, j, cell, childrentMappings, range);
+                if (rs2.Count > 0)
+                {
+                    textCellSuggestModels.AddRange(rs2);
+                }
+                else if (rs1 != null)
+                {
+                    textCellSuggestModels.Add(rs1);
+                }
             }
         }
         if (textCellSuggestModels.Count > 0)
         {
             range.ListTextCellSuggestModels = textCellSuggestModels;
             // log to debug
-           
+
             range.ListTextCellSuggestModels.LogToDebug();
-           
         }
         else
         {
@@ -695,8 +699,9 @@ public partial class DetectService
         }
     }
 
-    private void TryCheckCellChildIsFsNote1(List<TextCellSuggestModel> textCellSuggestModels, IRow? bottomRow, int i, int j, string cellValue, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
+    private static TextCellSuggestModel? TryCheckCellChildIsFsNote1(IRow? bottomRow, int i, int j, string cellValue, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
     {
+        TextCellSuggestModel? result = null;
         var bottomCell = bottomRow?.GetCell(j) ?? null;
         var bottomCellValue = bottomCell?.ToString();
         var cellValueCombineWithCellValueBottom = cellValue;
@@ -729,52 +734,102 @@ public partial class DetectService
             {
                 if (cellSuggest.Similarity > cellSuggestCombine.Similarity)
                 {
-                    textCellSuggestModels.Add(cellSuggest);
+                    //textCellSuggestModels.Add(cellSuggest);
+                    result = cellSuggest;
                 }
                 else
                 {
                     range.AddCellToIgnore(i, j);
-                    textCellSuggestModels.Add(cellSuggestCombine);
+                    //textCellSuggestModels.Add(cellSuggestCombine);
+                    result = cellSuggestCombine;
+                    result.CellStatus = CellStatus.Combine;
                 }
             }
             else if (cellSuggestCombine != null)
             {
                 range.AddCellToIgnore(i, j);
-                textCellSuggestModels.Add(cellSuggestCombine);
+                //textCellSuggestModels.Add(cellSuggestCombine);
+                result = cellSuggestCombine;
+                result.CellStatus = CellStatus.Combine;
             }
             else if (cellSuggest != null)
             {
-                textCellSuggestModels.Add(cellSuggest);
+                //textCellSuggestModels.Add(cellSuggest);
+                result = cellSuggest;
             }
         }
+
+        return result;
     }
 
-    private void TryCheckCellChildIsFsNote2(List<TextCellSuggestModel> textCellSuggestModels, IRow? bottomRow, int i, int j, string cellValue, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
+    private static List<TextCellSuggestModel> TryCheckCellChildIsFsNote2(int i, int j, ICell cell, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
     {
+        var results = new List<TextCellSuggestModel>();
+        if (string.IsNullOrWhiteSpace(cell?.ToString()))
+        {
+            return results;
+        }
+        var cellValue = cell.ToString()!;
         var is2OrMoreSentenceCase = StringUtils.Has2OrMoreSentenceCase(cellValue);
         if (!is2OrMoreSentenceCase)
         {
-            return;
+            return results;
         }
+
         cellValue = cellValue.RemoveSpecialCharactersVi();
         var splited = StringUtils.SplitSentenceCase(cellValue);
-        var tests = new List<TextCellSuggestModel>();
         int countIndex = 0;
-        foreach(var splitString in splited)
+        foreach (var splitString in splited)
         {
             countIndex++;
             var nomarlize = splitString.ToSimilarityCompareString();
-            if(string.IsNullOrWhiteSpace(nomarlize))
+            if (string.IsNullOrWhiteSpace(nomarlize))
             {
                 continue;
             }
             var cellSuggest = Test(childrentMappings, nomarlize, i, j);
             if (cellSuggest != null)
             {
-                cellSuggest.IndexInCell = countIndex-1;
-                tests.Add(cellSuggest);
+                cellSuggest.IndexInCell = countIndex - 1;
+                cellSuggest.CombineWithCell = null;
+                cellSuggest.CellStatus = CellStatus.Merge;
+                results.Add(cellSuggest);
             }
         }
-        var d = tests;
+        var mergeCell = cell.GetListCellInMergeCell();
+        if (mergeCell != null && mergeCell.Count > 0)
+        {
+            var rows = mergeCell.Select(x => x.RowIndex).Distinct().ToList().Count;
+            var cols = mergeCell.Select(x => x.ColumnIndex).Distinct().ToList().Count;
+            if (rows > 1 && cols == 1)
+            {
+                // is combine multi rows
+                foreach (var item  in results)
+                {
+                    item.RetriveCell = new MatrixCellModel()
+                    {
+                        Col = item.Col,
+                        Row = item.Row + item.IndexInCell
+                    };
+                }
+            }
+            else if (cols > 1 && rows == 1)
+            {
+                // is combine multi cols
+                foreach (var item in results)
+                {
+                    item.RetriveCell = new MatrixCellModel()
+                    {
+                        Col = item.Col + item.IndexInCell,
+                        Row = item.Row,
+                    };
+                }
+            }
+        }
+        if (results.Count > 0)
+        {
+            range.AddCellToIgnore(i, j);
+        }
+        return results;
     }
 }
