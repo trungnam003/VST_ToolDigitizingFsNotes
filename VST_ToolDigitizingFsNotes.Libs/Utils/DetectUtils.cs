@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Utils;
 
@@ -102,6 +103,7 @@ public partial class DetectUtils
         cancellationToken.ThrowIfCancellationRequested();
         if (sum == 0)
         {
+            //Debug.WriteLine("end");
             result.Add(new List<T>(current));
             return;
         }
@@ -113,10 +115,12 @@ public partial class DetectUtils
 
         // Bao gồm phần tử hiện tại
         current.Add(arr[index]);
+        //Debug.WriteLine("-top-");
         FindSubsets(arr, sum - valueSelector(arr[index]), index + 1, current, result, valueSelector, cancellationToken);
         current.RemoveAt(current.Count - 1);
 
         // Bỏ qua phần tử hiện tại
+        //Debug.WriteLine("-bot-");
         FindSubsets(arr, sum, index + 1, current, result, valueSelector, cancellationToken);
     }
 }

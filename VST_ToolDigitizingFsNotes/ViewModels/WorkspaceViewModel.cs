@@ -319,6 +319,7 @@ public partial class WorkspaceViewModel
         await t1;
         //await t2;
         startWatch.Stop();
+
         Debug.WriteLine($"(1) Time elapsed: {startWatch.ElapsedMilliseconds} ms");
 
     }

@@ -161,7 +161,8 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
 
         public static bool Has2OrMoreSentenceCase(string s)
         {
-            var regex = new Regex(@"[A-Z][a-z]");
+            s = s.RemoveSign4VietnameseString().Trim();
+            var regex = new Regex(@"(?<= |^)[A-Z][a-z]");
             return regex.Matches(s).Count >= 2;
         }
     }

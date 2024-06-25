@@ -143,7 +143,8 @@ public class MappingService : IMappingService
         foreach (var range in ranges)
         {
             var suggests = range.ListTextCellSuggestModels;
-            List<(int, int)>? input = suggests?.Select(x => (x.Row, x.Col)).ToList();
+            if (suggests == null) continue;
+            List<(int, int)>? input = suggests.Select(x => (x.Row, x.Col)).ToList();
 
             if (input == null || input.Count == 0)
             {
@@ -153,6 +154,17 @@ public class MappingService : IMappingService
             var direction = CoreUtils.DetermineDirection(input);
             if (direction == Direction.Row)
             {
+                //foreach (var suggest in suggests)
+                //{
+                //    if(suggest.RetriveCell == null && suggest.CellStatus == CellStatus.Merge)
+                //    {
+                //        suggest.RetriveCell = new MatrixCellModel()
+                //        {
+                //            Col = suggest.Col,
+                //            Row = suggest.Row + suggest.IndexInCell
+                //        };
+                //    }
+                //}
                 HandleMappingRowDirection(uow, dataMap, range);
             }
             else if (direction == Direction.Column)
@@ -179,8 +191,9 @@ public class MappingService : IMappingService
             // nên chuyển qua nơi khởi tạo
             moneyClones.Sort(MoneyCellModel.MoneyCellModelComparer);
 
-            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones);
+            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones, uow, range, dataMap);
             var handler1 = new MapInColHandler();
+            
             handler1.Handle(request);
         }
     }
@@ -197,8 +210,10 @@ public class MappingService : IMappingService
             // nên chuyển qua nơi khởi tạo
             moneyClones.Sort(MoneyCellModel.MoneyCellModelComparer);
 
-            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones);
+            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones, uow, range, dataMap);
             var handler1 = new MapInRowHandler();
+            var handler2 = new MapWhenOcrLineBreakErrorHandler();
+            handler1.SetNext(handler2);
             handler1.Handle(request);
         }
     }

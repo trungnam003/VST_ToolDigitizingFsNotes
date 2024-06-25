@@ -172,6 +172,18 @@
         {
             return HashCode.Combine(NoteId, Row, Col, Similarity);
         }
+        public static int Comparer(TextCellSuggestModel x, TextCellSuggestModel y)
+        {
+            if (x.Row == y.Row)
+            {
+                if (x.Col == y.Col)
+                {
+                    return x.IndexInCell.CompareTo(y.IndexInCell);
+                }
+                return x.Col.CompareTo(y.Col);
+            }
+            return x.Row.CompareTo(y.Row);
+        }
     }
     public enum CellStatus
     {

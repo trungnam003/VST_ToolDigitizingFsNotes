@@ -665,7 +665,7 @@ public partial class DetectService
                 //    && ((HeadingCellModel)range.Start).CombineWithCell?.Col == j;
 
                 var cell = row.GetCell(j);
-                var cellValue = cell.ToString()?.ToSimilarityCompareString();
+                var cellValue = cell?.ToString()?.ToSimilarityCompareString();
                 var isIgnoreCell = range.IsIgnoreCell(i, j);
 
                 if (isIgnoreCell || cell == null || string.IsNullOrWhiteSpace(cellValue))
@@ -679,10 +679,17 @@ public partial class DetectService
                 if (rs2.Count > 0)
                 {
                     textCellSuggestModels.AddRange(rs2);
+                    range.AddCellToIgnore(i, j);
                 }
                 else if (rs1 != null)
                 {
                     textCellSuggestModels.Add(rs1);
+                    range.AddCellToIgnore(rs1.Row, rs1.Col);
+
+                    if (rs1.CombineWithCell != null)
+                    {
+                        range.AddCellToIgnore(rs1.CombineWithCell.Row, rs1.CombineWithCell.Col);
+                    }
                 }
             }
         }
@@ -739,7 +746,6 @@ public partial class DetectService
                 }
                 else
                 {
-                    range.AddCellToIgnore(i, j);
                     //textCellSuggestModels.Add(cellSuggestCombine);
                     result = cellSuggestCombine;
                     result.CellStatus = CellStatus.Combine;
@@ -747,7 +753,6 @@ public partial class DetectService
             }
             else if (cellSuggestCombine != null)
             {
-                range.AddCellToIgnore(i, j);
                 //textCellSuggestModels.Add(cellSuggestCombine);
                 result = cellSuggestCombine;
                 result.CellStatus = CellStatus.Combine;
@@ -758,7 +763,6 @@ public partial class DetectService
                 result = cellSuggest;
             }
         }
-
         return result;
     }
 
@@ -825,10 +829,6 @@ public partial class DetectService
                     };
                 }
             }
-        }
-        if (results.Count > 0)
-        {
-            range.AddCellToIgnore(i, j);
         }
         return results;
     }
