@@ -80,6 +80,13 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             return char.IsLower(s[0]);
         }
 
+        public static bool StartWithUpper(string? s)
+        {
+            if (string.IsNullOrEmpty(s))
+                return false;
+            return char.IsUpper(s[0]);
+        }
+
         /// <summary>
         /// Xóa các dấu ngoặc và nội dung bên trong nó
         /// </summary>
@@ -126,15 +133,15 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
 
         public static List<int> GetIndexSentenceCase(string s)
         {
-            var index = new List<int>();
-            for (int i = 0; i < s.Length; i++)
+            // get indexes sentence case using regex
+            var indexes = new List<int>();
+            var regex = SentenceCaseRegex();
+            var matches = regex.Matches(s);
+            foreach (Match match in matches.Cast<Match>())
             {
-                if (char.IsUpper(s[i]) && i + 1 < s.Length && char.IsLower(s[i + 1]))
-                {
-                    index.Add(i);
-                }
+                indexes.Add(match.Index);
             }
-            return index;
+            return indexes;
         }
 
         public static List<string> SplitSentenceCase(string s)
@@ -162,9 +169,12 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
         public static bool Has2OrMoreSentenceCase(string s)
         {
             s = s.RemoveSign4VietnameseString().Trim();
-            var regex = new Regex(@"(?<= |^)[A-Z][a-z]");
+            var regex = SentenceCaseRegex();
             return regex.Matches(s).Count >= 2;
         }
+
+        [GeneratedRegex(@"(?<= |^)[A-Z][a-z]")]
+        private static partial Regex SentenceCaseRegex();
     }
 
     public static partial class StringUtils

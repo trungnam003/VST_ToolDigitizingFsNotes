@@ -1,5 +1,6 @@
 ﻿using NPOI.SS.UserModel;
 using System.Drawing;
+using VST_ToolDigitizingFsNotes.Libs.Models;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Utils
 {
@@ -216,6 +217,99 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
                 return mergedCells;
             }
             return null;
+        }
+
+        public static TextCellSuggestModel? TryGetCombineCell(ICell currCell, ICell? cellNext)
+        {
+            if (cellNext == null || string.IsNullOrWhiteSpace(cellNext.ToString()))
+                return null;
+
+            var cellNextValue = cellNext?.ToString()?.ToSimilarityCompareString();
+
+            if (!string.IsNullOrWhiteSpace(cellNextValue) && StringUtils.StartWithLower(cellNextValue) && cellNext != null)
+            {
+                TextCellSuggestModel model = new()
+                {
+                    Row = currCell.RowIndex,
+                    Col = currCell.ColumnIndex,
+                    CellValue = currCell.ToString()?.ToSimilarityCompareString() + " " + cellNextValue,
+                    CellStatus = CellStatus.Combine,
+                    CombineWithCell = new MatrixCellModel()
+                    {
+                        Row = cellNext.RowIndex,
+                        Col = cellNext.ColumnIndex,
+                    }
+                };
+                return model;
+            }
+            return null;
+        }
+
+        public static List<TextCellSuggestModel>? TryGetMergeCell(ICell cell)
+        {
+            var results = new List<TextCellSuggestModel>();
+            if (string.IsNullOrWhiteSpace(cell?.ToString()))
+            {
+                return null;
+            }
+            var cellValue = cell.ToString()!;
+            var is2OrMoreSentenceCase = StringUtils.Has2OrMoreSentenceCase(cellValue);
+            if (!is2OrMoreSentenceCase)
+            {
+                return null;
+            }
+            cellValue = cellValue.RemoveSign4VietnameseString();
+            var splited = StringUtils.SplitSentenceCase(cellValue.Trim());
+            int countIndex = 0;
+            foreach (var splitString in splited)
+            {
+                var nomarlize = splitString.ToSimilarityCompareString();
+                if (string.IsNullOrWhiteSpace(nomarlize))
+                {
+                    continue;
+                }
+                var cellSuggest = new TextCellSuggestModel()
+                {
+                    Row = cell.RowIndex,
+                    Col = cell.ColumnIndex,
+                    IndexInCell = countIndex++,
+                    CombineWithCell = null,
+                    CellStatus = CellStatus.Merge,
+                    CellValue = nomarlize,
+                };
+                results.Add(cellSuggest);
+            }
+            var mergeCell = cell.GetListCellInMergeCell();
+            if (mergeCell != null && mergeCell.Count > 0)
+            {
+                var rows = mergeCell.Select(x => x.RowIndex).Distinct().ToList().Count;
+                var cols = mergeCell.Select(x => x.ColumnIndex).Distinct().ToList().Count;
+                if (rows > 1 && cols == 1)
+                {
+                    // is combine multi rows
+                    foreach (var item in results)
+                    {
+                        item.RetriveCell = new MatrixCellModel()
+                        {
+                            Col = item.Col,
+                            Row = item.Row + item.IndexInCell
+                        };
+                    }
+                }
+                else if (cols > 1 && rows == 1)
+                {
+                    // is combine multi cols
+                    foreach (var item in results)
+                    {
+                        item.RetriveCell = new MatrixCellModel()
+                        {
+                            Col = item.Col + item.IndexInCell,
+                            Row = item.Row,
+                        };
+                    }
+                }
+            }
+            return results.Count == 0 ? null : results;
         }
     }
 }

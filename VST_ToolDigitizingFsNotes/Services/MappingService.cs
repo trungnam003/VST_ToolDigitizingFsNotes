@@ -191,7 +191,7 @@ public class MappingService : IMappingService
             // nên chuyển qua nơi khởi tạo
             moneyClones.Sort(MoneyCellModel.MoneyCellModelComparer);
 
-            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones, uow, range, dataMap);
+            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones);
             var handler1 = new MapInColHandler();
             
             handler1.Handle(request);
@@ -210,9 +210,9 @@ public class MappingService : IMappingService
             // nên chuyển qua nơi khởi tạo
             moneyClones.Sort(MoneyCellModel.MoneyCellModelComparer);
 
-            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones, uow, range, dataMap);
+            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones);
             var handler1 = new MapInRowHandler();
-            var handler2 = new MapWhenOcrLineBreakErrorHandler();
+            var handler2 = new MapWhenOcrLineBreakErrorHandler(uow, range, dataMap);
             handler1.SetNext(handler2);
             handler1.Handle(request);
         }

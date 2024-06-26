@@ -639,9 +639,7 @@ public partial class DetectService
 
         var startRow = range.Start.Row;
         var endRow = range.End.Row;
-        //Debug.WriteLine(currentMapping.Name);
-        //Debug.WriteLine($"{startRow} : {endRow}");
-        //var ignoreCell = new HashSet<string>();
+       
         for (int i = startRow; i <= endRow; i++)
         {
             IRow? row = workbook?.GetSheetAt(0).GetRow(i);
@@ -697,7 +695,6 @@ public partial class DetectService
         {
             range.ListTextCellSuggestModels = textCellSuggestModels;
             // log to debug
-
             range.ListTextCellSuggestModels.LogToDebug();
         }
         else
@@ -765,7 +762,21 @@ public partial class DetectService
         }
         return result;
     }
+    private static List<TextCellSuggestModel>? TryCheckCellChildIsFsNote2v2(int i, int j, ICell cell, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
+    {
+        var mergeCells = CoreUtils.TryGetMergeCell(cell);
+        if (mergeCells == null)
+            return null;
+        var results = new List<TextCellSuggestModel>();
 
+        foreach(var item in mergeCells)
+        {
+            var cellSuggest = Test(childrentMappings, item.CellValue ?? "", i, j);
+        }
+
+        return results;
+        
+    }
     private static List<TextCellSuggestModel> TryCheckCellChildIsFsNote2(int i, int j, ICell cell, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
     {
         var results = new List<TextCellSuggestModel>();
@@ -780,7 +791,7 @@ public partial class DetectService
             return results;
         }
 
-        cellValue = cellValue.RemoveSpecialCharactersVi();
+        cellValue = cellValue.RemoveSign4VietnameseString();
         var splited = StringUtils.SplitSentenceCase(cellValue);
         int countIndex = 0;
         foreach (var splitString in splited)

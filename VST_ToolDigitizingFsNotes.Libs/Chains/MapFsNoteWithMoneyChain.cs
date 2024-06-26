@@ -1,6 +1,7 @@
 ﻿
 using Ardalis.SmartEnum;
 using Force.DeepCloner;
+using Org.BouncyCastle.Ocsp;
 using System.Diagnostics;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
@@ -9,21 +10,14 @@ namespace VST_ToolDigitizingFsNotes.Libs.Chains;
 
 public class MapFsNoteWithMoneyChainRequest : ChainBaseRequest<MapEvaluators>
 {
-
-    public UnitOfWorkModel Uow { get; init; }
     public List<TextCellSuggestModel> ListTextCellSuggests { get; init; }
     public List<MoneyCellModel> ListMoneyCells { get; init; }
 
-    public RangeDetectFsNote Range { get; init; }
-    public FsNoteDataMap DataMap { get; init; }
 
-    public MapFsNoteWithMoneyChainRequest(List<TextCellSuggestModel> listTextCellSuggests, List<MoneyCellModel> listMoneyCells, UnitOfWorkModel uow, RangeDetectFsNote range, FsNoteDataMap dataMap)
+    public MapFsNoteWithMoneyChainRequest(List<TextCellSuggestModel> listTextCellSuggests, List<MoneyCellModel> listMoneyCells)
     {
         ListTextCellSuggests = listTextCellSuggests;
         ListMoneyCells = listMoneyCells;
-        Uow = uow;
-        Range = range;
-        DataMap = dataMap;
     }
 }
 
@@ -225,6 +219,15 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
 
 public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
 {
+    public UnitOfWorkModel Uow { get; init; }
+    public RangeDetectFsNote Range { get; init; }
+    public FsNoteDataMap DataMap { get; init; }
+    public MapWhenOcrLineBreakErrorHandler(UnitOfWorkModel uow, RangeDetectFsNote range, FsNoteDataMap dataMap)
+    {
+        Uow = uow;
+        Range = range;
+        DataMap = dataMap;
+    }
     public override void Handle(MapFsNoteWithMoneyChainRequest request)
     {
         if (request.Handled)
@@ -258,6 +261,32 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
             var start = draftCells.First().Row;
             var end = draftCells.Last().Row;
             // Xử lý
+
+            var rs = CountFsNoteNameWithInRange(start, end, request);
+            if(rs.Count > 0)
+            {
+                draftCells.AddRange(rs);
+            }
+            draftCells.Sort(TextCellSuggestModel.Comparer);
+            //foreach (var item in draftCells)
+            //{
+            //    Debug.WriteLine(item);
+            //}
+            if (request.ListMoneyCells.Count == draftCells.Count)
+            {
+                for (int i = 0; i < request.ListMoneyCells.Count; i++)
+                {
+                    var evaluator = new MapEvaluator(draftCells[i], request.ListMoneyCells[i])
+                    {
+                        MapType = MapType.MappedInRow,
+                        Status = MapEvaluatorStatus.Mapped
+                    };
+                    evaluators.ListMapEvaluators.Add(evaluator);
+                    evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
+                    evaluators.TextCellMapped.Add(draftCells[i]);
+                    Debug.WriteLine($"(e)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+                }
+            }
         }
 
         if (evaluators.ListMapEvaluators.Count == request.ListMoneyCells.Count)
@@ -265,6 +294,92 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
             request.SetHandled(true);
             return;
         }
+    }
+
+    private List<TextCellSuggestModel> CountFsNoteNameWithInRange(int startRow, int endRow, MapFsNoteWithMoneyChainRequest req)
+    {
+        var rowDetected = new HashSet<int>();
+        var cols = new List<int>();
+        foreach(var item in req.ListTextCellSuggests)
+        {
+            cols.Add(item.Col);
+            rowDetected.Add(item.Row);
+            if(item.CombineWithCell != null)
+            {
+                rowDetected.Add(item.CombineWithCell.Row);
+            }
+        }
+        var colIndex = GetMostFreq(cols);
+        var workbook = Uow.OcrWorkbook ?? throw new ArgumentNullException();
+        // Kiểm tra bên trong có thể có chỉ tiêu khác hay không
+        var newList = new List<TextCellSuggestModel>();
+        for(int i = startRow; i<= endRow; i++)
+        {
+            if (rowDetected.Contains(i))
+                continue;
+
+            var sheet = workbook.GetSheetAt(0) ?? throw new ArgumentNullException();
+            var row = sheet.GetRow(i);
+            var cell = row?.GetCell(colIndex);
+            if (row == null || cell == null || string.IsNullOrEmpty(cell?.ToString()))
+                continue;
+
+            var mergeCells = CoreUtils.TryGetMergeCell(cell);
+            if(mergeCells != null)
+            {
+                newList.AddRange(mergeCells);
+                continue;
+            }
+
+            var combineCell = CoreUtils.TryGetCombineCell(cell, sheet?.GetRow(i+1)?.GetCell(colIndex));
+            if(combineCell != null)
+            {
+                newList.Add(combineCell);
+                i++;
+                continue;
+            }
+
+            var normalCell = new TextCellSuggestModel()
+            {
+                Row = i,
+                Col = colIndex,
+                CellValue = cell.ToString(),
+                CellStatus = CellStatus.Default
+            };
+            newList.Add(normalCell);
+        }
+
+        return newList;
+    }
+
+    private static int GetMostFreq(List<int> list)
+    {
+        var elementCounts = new Dictionary<int, int>();
+
+        foreach (var element in list)
+        {
+            if (elementCounts.TryGetValue(element, out int value))
+            {
+                elementCounts[element] = ++value;
+            }
+            else
+            {
+                elementCounts[element] = 1;
+            }
+        }
+        int maxCount = 0;
+        int mostFrequentElement = list[0];
+
+        foreach (var pair in elementCounts)
+        {
+            if (pair.Value > maxCount)
+            {
+                maxCount = pair.Value;
+                mostFrequentElement = pair.Key;
+            }
+        }
+
+        return mostFrequentElement;
     }
 }
 #endregion

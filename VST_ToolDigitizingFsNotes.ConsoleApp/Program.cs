@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using Newtonsoft.Json;
 
 using MicJsonConvert = System.Text.Json.JsonSerializer;
+using NPOI.SS.Formula.Functions;
 namespace VST_ToolDigitizingFsNotes.ConsoleApp;
 
 internal class Program
@@ -129,11 +130,8 @@ internal class Program
         //UserData? o = JsonConvert.DeserializeObject<UserData>(rootElement.GetRawText());
 
         //var z = o.GetVstSsoRole();
-        HashSet<(int, int)> devs = new();
-        devs.Add((1, 2));
+        var cols = new List<int>() { 1, 1, 1, 1, 1, 2,2,2 };
 
-        var i = devs.Contains((1, 2));
-        Console.WriteLine(i);
     }
 }
 
