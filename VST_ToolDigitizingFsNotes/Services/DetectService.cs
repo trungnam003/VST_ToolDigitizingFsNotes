@@ -74,7 +74,7 @@ public partial class DetectService : IDetectService
             }
         }
 
-        newHeadingContent = newHeadingContent.ToSystemNomalizeString();
+        newHeadingContent = newHeadingContent.ToSimilarityCompareString();
         var heading = new HeadingCellModel
         {
             ContentSection = newHeadingContent,
@@ -86,7 +86,6 @@ public partial class DetectService : IDetectService
         };
         headings.Add(heading);
     }
-
     public void DetectMoneys(string cellValue, ICell cell, ref List<MoneyCellModel> moneys)
     {
         // regex to match money string 1
@@ -145,289 +144,60 @@ public partial class DetectService : IDetectService
             .ToList();
         moneys.AddRange(newList);
     }
+    //private static TextCellSuggestModel? Test(List<FsNoteMappingModel> childMappings, string text, int i, int j)
+    //{
 
-    /// <summary>
-    /// Thực hiện xác định khu vực phù hợp nhất cho 1 chỉ tiêu
-    /// </summary>
-    /// <param name="moneys"></param>
-    /// <param name="uow"></param>
-    /// <param name="parent"></param>
-    private (List<RangeDetectFsNote>?, MapFsNoteStatus) ProcessingDeterminesTheMostSuitableRange(List<MoneyCellModel> moneys, UnitOfWorkModel uow, FsNoteParentModel parent)
+    //    const double ZERO = 0.0;
+    //    double maxSimilarity = ZERO;
+    //    var cell = new TextCellSuggestModel
+    //    {
+    //        Row = i,
+    //        Col = j,
+    //        Similarity = ZERO,
+    //        CellValue = text
+    //    };
+    //    foreach (var childMapping in childMappings)
+    //    {
+    //        var keywords = childMapping.Keywords;
+    //        foreach (var keyword in keywords)
+    //        {
+    //            double currentSimilarity = StringSimilarityUtils.CalculateSimilarity(keyword, text);
+    //            if (currentSimilarity > maxSimilarity)
+    //            {
+    //                maxSimilarity = currentSimilarity;
+    //            }
+    //            if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity)
+    //            {
+    //                break;
+    //            }
+    //        }
+    //        if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity && maxSimilarity > cell.Similarity)
+    //        {
+    //            cell.Similarity = maxSimilarity;
+    //            cell.NoteId = childMapping.Id;
+    //            cell.NoteName = childMapping.Name;
+    //        }
+    //    }
+    //    return cell.Similarity == ZERO || cell.Similarity < StringSimilarityUtils.AcceptableSimilarity ? null : cell;
+    //}
+
+    private static bool TryCheckIsFsNote(TextCellSuggestModel model, List<FsNoteMappingModel> childMappings, out double similarity)
     {
-        var rs = new List<RangeDetectFsNote>();
-        _mapping.TryGetValue(parent.FsNoteId, out var mapParentData);
-        // tạm thời bỏ qua các chỉ tiêu bị disable trong file mapping
-        if (mapParentData == null || mapParentData.IsDisabled)
-        {
-            return (null, MapFsNoteStatus.IgnoreMap);
-        }
-        // số cuối cùng thường là số của chỉ tiêu, vì đọc từ trên xuống dưới nên cần đảo ngược lại
-        moneys.Reverse();
-        RangeDetectFsNote? prevRangeSpecified = null;
-        foreach (var money in moneys)
-        {
-            // check current money is already in prev range
-            // giảm bớt các khu vực trùng lặp trong nhau
-            if (prevRangeSpecified != null && prevRangeSpecified.IsMoneyInThisRange(money))
-            {
-                continue;
-            }
-
-            DetectRangeChainRequest request = new(uow, parent, money);
-            // Xác định khu vực phù hợp nhất cho chỉ tiêu dựa trên heading
-            var handler1 = new DetectUsingHeadingHandler(mapParentData);
-            // Xác định khu vực phù hợp nhất cho chỉ tiêu dựa trên sự tương đồng
-            var handler2 = new DetectUsingSimilartyStringHanlder(mapParentData);
-            // Xác định khu vực khi chỉ tiêu cha bị OCR lỗi gộp vào 1 ô
-            var handler3 = new DetectUsingDiffMatchPatchStringHandler(mapParentData);
-
-            handler1.SetNext(handler2);
-            handler2.SetNext(handler3);
-            handler1.Handle(request);
-
-            if (request.Result == null || !request.Handled)
-            {
-                continue;
-            }
-            //var hasExtensionKeywords = mapParentData.KeywordExtensions.Count > 0;
-            //if (hasExtensionKeywords)
-            //{
-            //    var narrowRequest = new NarrowRangeDetectedUsingExtensionKeywordsRequest(uow, parent);
-            //    var narrowHandler1 = new NarrowRangeDetectedUsingExtensionKeywordsHandler(mapParentData);
-
-            //    narrowHandler1.Handle(narrowRequest);
-            //    if (narrowRequest.Result != null && narrowRequest.Handled)
-            //    {
-            //        request.Result.UpdateRange(narrowRequest.Result.Start, narrowRequest.Result.End);
-            //    }
-            //}
-            request.Result.DetectRangeStatus = DetectRangeStatus.AllowNextHandle;
-            rs.Add(request.Result);
-            prevRangeSpecified = request.Result;
-        }
-
-        return rs.Count == 0 ? (null, MapFsNoteStatus.NotYetMapped) : (rs, MapFsNoteStatus.CanMap);
-    }
-
-    /// <summary>
-    /// Tìm các số tiền trong các khu vực đã xác định có tổng bằng chỉ tiêu cha
-    /// </summary>
-    /// <param name="uow"></param>
-    /// <param name="ranges"></param>
-    /// <param name="parent"></param>
-    private void ProcessingDeterminesMoneysInRange(UnitOfWorkModel uow, FsNoteDataMap dataMap)
-    {
-        var noteId = dataMap.FsNoteId;
-        var group = dataMap.Group;
-        var parent = uow.FsNoteParentModels.FirstOrDefault(x => x.FsNoteId == noteId && x.Group == group);
-
-        if (parent == null)
-        {
-            return;
-        }
-
-        if (dataMap.RangeDetectFsNotes == null || dataMap.RangeDetectFsNotes.Count == 0)
-        {
-            return;
-        }
-        foreach (var range in dataMap.RangeDetectFsNotes)
-        {
-            var moneyCellTarget = range.MoneyCellModel;
-            var moneysInRange = uow.MoneyCellModels
-                .Where(x => x.Row >= range.Start.Row && x.Row <= range.End.Row)
-                // không duyệt số tiền của chỉ tiêu cha, operator != đã được custom lại
-                .Where(x => x != moneyCellTarget)
-                .ToList();
-
-            var request = new SpecifyMoneyInRangeEqualWithParentRequest(uow, dataMap);
-            var handler1 = new SpecifyMoneyInRangeEqualWithParentHandle(moneysInRange, moneyCellTarget);
-            var handler2 = new SpecifyAllMoneyInRangeHandle(moneysInRange, moneyCellTarget);
-
-            handler1.SetNext(handler2);
-            handler1.Handle(request);
-
-            if (request.Result != null && request.Handled)
-            {
-                range.MoneyResults = request.Result;
-            }
-            else
-            {
-                range.MoneyResults = null;
-                range.DetectRangeStatus = DetectRangeStatus.RequireDetectAgain;
-            }
-        }
-        if (dataMap.RangeDetectFsNotes.Count == dataMap.RangeDetectFsNotes.Count(x => x.DetectRangeStatus == DetectRangeStatus.RequireDetectAgain))
-        {
-            dataMap.MapStatus = MapFsNoteStatus.RequireMapAgain;
-        }
-    }
-
-    private void ProcessingDetectChildrentFsNotesInRange(UnitOfWorkModel uow, FsNoteDataMap dataMap)
-    {
-        _mapping.TryGetValue(dataMap.FsNoteId, out var currentMapping);
-        if (currentMapping == null)
-        {
-            return;
-        }
-        var childrentMappings = currentMapping.Children[dataMap!.Group - 1];
-
-        if (dataMap.RangeDetectFsNotes == null || dataMap.RangeDetectFsNotes.Count == 0)
-        {
-            return;
-        }
-
-        var workbook = uow.OcrWorkbook;
-        foreach (var range in dataMap.RangeDetectFsNotes)
-        {
-            List<TextCellSuggestModel> textCellSuggestModels = [];
-            if (range == null)
-            {
-                continue;
-            }
-
-            if (range.DetectRangeStatus != DetectRangeStatus.AllowNextHandle)
-            {
-                continue;
-            }
-            var startRow = range.Start.Row;
-            var endRow = range.End.Row;
-            //Debug.WriteLine(currentMapping.Name);
-            //Debug.WriteLine($"{startRow} : {endRow}");
-            var ignoreCell = new HashSet<string>();
-            for (int i = startRow; i <= endRow; i++)
-            {
-                IRow? row = workbook?.GetSheetAt(0).GetRow(i);
-                IRow? bottomRow = i < endRow ? workbook?.GetSheetAt(0).GetRow(i + 1) : null;
-                if (row == null)
-                {
-                    continue;
-                }
-
-                for (int j = 0; j < row.LastCellNum; j++)
-                {
-                    var ignoreStartCell = (i == startRow && j == range.Start.Col)
-                        && range.DetectStartRangeStatus == DetectStartRangeStatus.SkipStringSimilarity;
-
-                    // Xử lý loại bỏ heading hoặc heading đã được kết hợp với ô khác
-                    var isHeadingAndHasCombineCell = range.Start.GetType() == typeof(HeadingCellModel)
-                        && ((HeadingCellModel)range.Start).CombineWithCell != null;
-
-                    var currentCellIsCombineCell = isHeadingAndHasCombineCell
-                        && ((HeadingCellModel)range.Start).CombineWithCell?.Row == i
-                        && ((HeadingCellModel)range.Start).CombineWithCell?.Col == j;
-
-                    if (ignoreStartCell || currentCellIsCombineCell)
-                    {
-                        continue;
-                    }
-
-                    if (ignoreCell.Contains($"{i}:{j}"))
-                    {
-                        continue;
-                    }
-
-                    var cell = row.GetCell(j);
-                    if (cell == null)
-                    {
-                        continue;
-                    }
-                    var cellValue = cell.ToString()?.ToSimilarityCompareString();
-
-                    if (string.IsNullOrWhiteSpace(cellValue))
-                    {
-                        continue;
-                    }
-                    var bottomCell = bottomRow?.GetCell(j) ?? null;
-                    var bottomCellValue = bottomCell?.ToString();
-                    var cellValueCombineWithCellValueBottom = cellValue;
-                    bool allowCombine = false;
-                    // Kết hợp với text phía dưới để tăng khả năng nhận diện chính xác hơn vì có chỉ tiêu xuống dòng
-                    if (!string.IsNullOrWhiteSpace(bottomCellValue) && StringUtils.StartWithLower(bottomCellValue))
-                    {
-                        var bottomCellValueNormalize = bottomCellValue.ToSimilarityCompareString();
-                        cellValueCombineWithCellValueBottom = cellValue + " " + bottomCellValueNormalize;
-                        allowCombine = true;
-                    }
-
-                    var cellSuggest = Test(childrentMappings, cellValue, i, j);
-                    var cellSuggestCombine = allowCombine ? Test(childrentMappings, cellValueCombineWithCellValueBottom, i, j) : null;
-                    if (cellSuggestCombine != null)
-                    {
-                        cellSuggestCombine.CombineWithCell = new()
-                        {
-                            Row = i + 1,
-                            Col = j,
-                            CellValue = bottomCellValue ?? ""
-                        };
-                    }
-
-                    var hasSuggest = cellSuggest != null || cellSuggestCombine != null;
-
-                    if (hasSuggest)
-                    {
-                        if (cellSuggest != null && cellSuggestCombine != null)
-                        {
-                            if (cellSuggest.Similarity > cellSuggestCombine.Similarity)
-                            {
-                                //Debug.WriteLine(cellSuggest);
-                                textCellSuggestModels.Add(cellSuggest);
-                            }
-                            else
-                            {
-                                //Debug.WriteLine(cellSuggestCombine);
-                                ignoreCell.Add($"{i + 1}:{j}");
-                                textCellSuggestModels.Add(cellSuggestCombine);
-                            }
-                        }
-                        else if (cellSuggestCombine != null)
-                        {
-                            //Debug.WriteLine(cellSuggestCombine);
-                            ignoreCell.Add($"{i + 1}:{j}");
-                            textCellSuggestModels.Add(cellSuggestCombine);
-                        }
-                        else if (cellSuggest != null)
-                        {
-                            //Debug.WriteLine(cellSuggest);
-                            textCellSuggestModels.Add(cellSuggest);
-                        }
-                    }
-                }
-            }
-            //Debug.WriteLine("===================================");
-
-            if (textCellSuggestModels.Count > 0)
-            {
-                range.ListTextCellSuggestModels = textCellSuggestModels;
-            }
-            else
-            {
-                range.DetectRangeStatus = DetectRangeStatus.RequireDetectAgain;
-            }
-        }
-        if (dataMap.RangeDetectFsNotes.Count == dataMap.RangeDetectFsNotes.Count(x => x.DetectRangeStatus == DetectRangeStatus.RequireDetectAgain))
-        {
-            dataMap.MapStatus = MapFsNoteStatus.RequireMapAgain;
-        }
-    }
-
-    private static TextCellSuggestModel? Test(List<FsNoteMappingModel> childMappings, string text, int i, int j)
-    {
-
         const double ZERO = 0.0;
-        double maxSimilarity = ZERO;
-        var cell = new TextCellSuggestModel
+        similarity = ZERO;
+        if (string.IsNullOrWhiteSpace(model.CellValue))
         {
-            Row = i,
-            Col = j,
-            Similarity = ZERO,
-            CellValue = text
-        };
+            return false;
+        }
+        double maxSimilarity = similarity;
+        int noteId = -1;
+        string noteName = string.Empty;
         foreach (var childMapping in childMappings)
         {
             var keywords = childMapping.Keywords;
             foreach (var keyword in keywords)
             {
-                double currentSimilarity = StringSimilarityUtils.CalculateSimilarity(keyword, text);
+                double currentSimilarity = StringSimilarityUtils.CalculateSimilarity(keyword, model.CellValue);
                 if (currentSimilarity > maxSimilarity)
                 {
                     maxSimilarity = currentSimilarity;
@@ -437,66 +207,21 @@ public partial class DetectService : IDetectService
                     break;
                 }
             }
-            if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity && maxSimilarity > cell.Similarity)
+            if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity && maxSimilarity > similarity)
             {
-                cell.Similarity = maxSimilarity;
-                cell.NoteId = childMapping.Id;
-                cell.NoteName = childMapping.Name;
+                similarity = maxSimilarity;
+                noteId = childMapping.Id;
+                noteName = childMapping.Name;
             }
         }
-        return cell.Similarity == ZERO || cell.Similarity < StringSimilarityUtils.AcceptableSimilarity ? null : cell;
-    }
-
-    /// <summary>
-    /// Gom nhóm dữ liệu tiền, đánh giá và sắp xếp khu vực phù hợp nhất
-    /// </summary>
-    /// <param name="uow"></param>
-    public void GroupFsNoteDataRange(UnitOfWorkModel uow)
-    {
-        var listDataMap = new List<FsNoteDataMap>();
-        foreach (var parent in uow.FsNoteParentModels)
+        var isValid =  similarity != ZERO && similarity >= StringSimilarityUtils.AcceptableSimilarity;
+        if (isValid)
         {
-            var d2 = parent.Value;
-            var fsNoteDataMap = new FsNoteDataMap
-            {
-                FsNoteId = parent.FsNoteId,
-                Group = parent.Group,
-                FsNoteParentModel = parent
-            };
-            /// Tạm thời tìm kiếm dùng giá trị tuyệt đối để tìm kiếm số tiền, nếu có lỗi thì sẽ sửa lại
-            List<MoneyCellModel> moneys = uow.MoneyCellModels
-                .Where(money => Math.Abs(money.Value) == Math.Abs(parent.Value))
-                .ToList();
-
-            var (result, status) = ProcessingDeterminesTheMostSuitableRange(moneys, uow, parent);
-
-            if (result != null)
-            {
-                fsNoteDataMap.RangeDetectFsNotes = result;
-            }
-            fsNoteDataMap.MapStatus = status;
-            listDataMap.Add(fsNoteDataMap);
+            // set giá trị cho model
+            model.NoteId = noteId;
+            model.NoteName = noteName;
         }
-
-        foreach (var dataMap in listDataMap)
-        {
-            if (dataMap.RangeDetectFsNotes != null
-                && dataMap.RangeDetectFsNotes.Count > 0
-                && dataMap.MapStatus == MapFsNoteStatus.CanMap)
-            {
-                ProcessingDeterminesMoneysInRange(uow, dataMap);
-                if (dataMap.MapStatus == MapFsNoteStatus.CanMap)
-                {
-                    ProcessingDetectChildrentFsNotesInRange(uow, dataMap);
-                }
-            }
-        }
-
-        var canMapList = listDataMap.Where(x => x.MapStatus == MapFsNoteStatus.CanMap).ToList();
-        foreach (var dataMap in canMapList)
-        {
-            _mappingService.MapFsNoteWithMoney(uow, dataMap);
-        }
+        return isValid;
     }
 }
 
@@ -651,16 +376,6 @@ public partial class DetectService
 
             for (int j = 0; j < row.LastCellNum; j++)
             {
-                //var ignoreStartCell = (i == startRow && j == range.Start.Col)
-                //    && range.DetectStartRangeStatus == DetectStartRangeStatus.SkipStringSimilarity;
-
-                //// Xử lý loại bỏ heading hoặc heading đã được kết hợp với ô khác
-                //var isHeadingAndHasCombineCell = range.Start.GetType() == typeof(HeadingCellModel)
-                //    && ((HeadingCellModel)range.Start).CombineWithCell != null;
-
-                //var currentCellIsCombineCell = isHeadingAndHasCombineCell
-                //    && ((HeadingCellModel)range.Start).CombineWithCell?.Row == i
-                //    && ((HeadingCellModel)range.Start).CombineWithCell?.Col == j;
 
                 var cell = row.GetCell(j);
                 var cellValue = cell?.ToString()?.ToSimilarityCompareString();
@@ -672,22 +387,25 @@ public partial class DetectService
                     continue;
                 }
 
-                var rs1 = TryCheckCellChildIsFsNote1(bottomRow, i, j, cellValue, childrentMappings, range);
-                var rs2 = TryCheckCellChildIsFsNote2(i, j, cell, childrentMappings, range);
-                if (rs2.Count > 0)
+                var mergeCells = TryCheckCellChildIsFsNote2_v2(cell, childrentMappings);
+                if (mergeCells != null && mergeCells.Count > 0)
                 {
-                    textCellSuggestModels.AddRange(rs2);
+                    textCellSuggestModels.AddRange(mergeCells);
                     range.AddCellToIgnore(i, j);
+                    continue;
                 }
-                else if (rs1 != null)
-                {
-                    textCellSuggestModels.Add(rs1);
-                    range.AddCellToIgnore(rs1.Row, rs1.Col);
 
-                    if (rs1.CombineWithCell != null)
+                var cellSuggest = TryCheckCellChildIsFsNote1_v2(bottomRow, cell, childrentMappings);
+                if (cellSuggest != null)
+                {
+                    textCellSuggestModels.Add(cellSuggest);
+                    range.AddCellToIgnore(cellSuggest.Row, cellSuggest.Col);
+
+                    if (cellSuggest.CombineWithCell != null)
                     {
-                        range.AddCellToIgnore(rs1.CombineWithCell.Row, rs1.CombineWithCell.Col);
+                        range.AddCellToIgnore(cellSuggest.CombineWithCell.Row, cellSuggest.CombineWithCell.Col);
                     }
+                    continue;
                 }
             }
         }
@@ -703,144 +421,198 @@ public partial class DetectService
         }
     }
 
-    private static TextCellSuggestModel? TryCheckCellChildIsFsNote1(IRow? bottomRow, int i, int j, string cellValue, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
+    //private static TextCellSuggestModel? TryCheckCellChildIsFsNote1(IRow? bottomRow, int i, int j, string cellValue, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
+    //{
+    //    TextCellSuggestModel? result = null;
+    //    var bottomCell = bottomRow?.GetCell(j) ?? null;
+    //    var bottomCellValue = bottomCell?.ToString();
+    //    var cellValueCombineWithCellValueBottom = cellValue;
+    //    bool allowCombine = false;
+    //    // Kết hợp với text phía dưới để tăng khả năng nhận diện chính xác hơn vì có chỉ tiêu xuống dòng
+    //    if (!string.IsNullOrWhiteSpace(bottomCellValue) && StringUtils.StartWithLower(bottomCellValue))
+    //    {
+    //        var bottomCellValueNormalize = bottomCellValue.ToSimilarityCompareString();
+    //        cellValueCombineWithCellValueBottom = cellValue + " " + bottomCellValueNormalize;
+    //        allowCombine = true;
+    //    }
+
+    //    var cellSuggest = Test(childrentMappings, cellValue, i, j);
+    //    var cellSuggestCombine = allowCombine ? Test(childrentMappings, cellValueCombineWithCellValueBottom, i, j) : null;
+    //    if (cellSuggestCombine != null)
+    //    {
+    //        cellSuggestCombine.CombineWithCell = new()
+    //        {
+    //            Row = i + 1,
+    //            Col = j,
+    //            CellValue = bottomCellValue ?? ""
+    //        };
+    //    }
+
+    //    var hasSuggest = cellSuggest != null || cellSuggestCombine != null;
+
+    //    if (hasSuggest)
+    //    {
+    //        if (cellSuggest != null && cellSuggestCombine != null)
+    //        {
+    //            if (cellSuggest.Similarity > cellSuggestCombine.Similarity)
+    //            {
+    //                //textCellSuggestModels.Add(cellSuggest);
+    //                result = cellSuggest;
+    //            }
+    //            else
+    //            {
+    //                //textCellSuggestModels.Add(cellSuggestCombine);
+    //                result = cellSuggestCombine;
+    //                result.CellStatus = CellStatus.Combine;
+    //            }
+    //        }
+    //        else if (cellSuggestCombine != null)
+    //        {
+    //            //textCellSuggestModels.Add(cellSuggestCombine);
+    //            result = cellSuggestCombine;
+    //            result.CellStatus = CellStatus.Combine;
+    //        }
+    //        else if (cellSuggest != null)
+    //        {
+    //            //textCellSuggestModels.Add(cellSuggest);
+    //            result = cellSuggest;
+    //        }
+    //    }
+    //    return result;
+    //}
+   
+    private static TextCellSuggestModel? TryCheckCellChildIsFsNote1_v2(IRow? bottomRow, ICell cell, List<FsNoteMappingModel> childrentMappings)
     {
         TextCellSuggestModel? result = null;
-        var bottomCell = bottomRow?.GetCell(j) ?? null;
-        var bottomCellValue = bottomCell?.ToString();
-        var cellValueCombineWithCellValueBottom = cellValue;
-        bool allowCombine = false;
-        // Kết hợp với text phía dưới để tăng khả năng nhận diện chính xác hơn vì có chỉ tiêu xuống dòng
-        if (!string.IsNullOrWhiteSpace(bottomCellValue) && StringUtils.StartWithLower(bottomCellValue))
+        var bottomCell = bottomRow?.GetCell(cell.ColumnIndex) ?? null;
+        var combineCell = CoreUtils.TryGetCombineCell(cell, bottomCell);
+        var currCellSuggest = new TextCellSuggestModel
         {
-            var bottomCellValueNormalize = bottomCellValue.ToSimilarityCompareString();
-            cellValueCombineWithCellValueBottom = cellValue + " " + bottomCellValueNormalize;
-            allowCombine = true;
+            Row = cell.RowIndex,
+            Col = cell.ColumnIndex,
+            CellValue = cell.ToString()?.ToSimilarityCompareString() ?? "",
+        };
+
+        var isValidFsNote = TryCheckIsFsNote(currCellSuggest, childrentMappings, out var similarity);
+        double similarityCombine = 0.0;
+        var isValidFsNoteCombine = false;
+        if (combineCell != null)
+        {
+            isValidFsNoteCombine =  TryCheckIsFsNote(combineCell, childrentMappings, out var _similarity);
+            similarityCombine = _similarity;
         }
 
-        var cellSuggest = Test(childrentMappings, cellValue, i, j);
-        var cellSuggestCombine = allowCombine ? Test(childrentMappings, cellValueCombineWithCellValueBottom, i, j) : null;
-        if (cellSuggestCombine != null)
+        if (isValidFsNote && isValidFsNoteCombine)
         {
-            cellSuggestCombine.CombineWithCell = new()
+            if (similarity > similarityCombine)
             {
-                Row = i + 1,
-                Col = j,
-                CellValue = bottomCellValue ?? ""
-            };
-        }
-
-        var hasSuggest = cellSuggest != null || cellSuggestCombine != null;
-
-        if (hasSuggest)
-        {
-            if (cellSuggest != null && cellSuggestCombine != null)
-            {
-                if (cellSuggest.Similarity > cellSuggestCombine.Similarity)
-                {
-                    //textCellSuggestModels.Add(cellSuggest);
-                    result = cellSuggest;
-                }
-                else
-                {
-                    //textCellSuggestModels.Add(cellSuggestCombine);
-                    result = cellSuggestCombine;
-                    result.CellStatus = CellStatus.Combine;
-                }
+                result = currCellSuggest;
+                result.Similarity = similarity;
             }
-            else if (cellSuggestCombine != null)
+            else
             {
-                //textCellSuggestModels.Add(cellSuggestCombine);
-                result = cellSuggestCombine;
+                result = combineCell!;
                 result.CellStatus = CellStatus.Combine;
-            }
-            else if (cellSuggest != null)
-            {
-                //textCellSuggestModels.Add(cellSuggest);
-                result = cellSuggest;
+                result.Similarity = similarityCombine;
             }
         }
+        else if (isValidFsNote)
+        {
+            result = currCellSuggest;
+            result.Similarity = similarity;
+        }
+        else if (isValidFsNoteCombine)
+        {
+            result = combineCell!;
+            result.CellStatus = CellStatus.Combine;
+            result.Similarity = similarityCombine;
+        }
+
         return result;
     }
-    private static List<TextCellSuggestModel>? TryCheckCellChildIsFsNote2v2(int i, int j, ICell cell, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
+    private static List<TextCellSuggestModel>? TryCheckCellChildIsFsNote2_v2(ICell cell, List<FsNoteMappingModel> childrentMappings)
     {
         var mergeCells = CoreUtils.TryGetMergeCell(cell);
         if (mergeCells == null)
             return null;
         var results = new List<TextCellSuggestModel>();
 
-        foreach(var item in mergeCells)
+        foreach(var mergeCell in mergeCells)
         {
-            var cellSuggest = Test(childrentMappings, item.CellValue ?? "", i, j);
+            var isFsNote = TryCheckIsFsNote(mergeCell, childrentMappings, out var similarity);
+            if (isFsNote)
+            {
+                mergeCell.Similarity = similarity;
+                results.Add(mergeCell);
+            }
         }
-
         return results;
         
     }
-    private static List<TextCellSuggestModel> TryCheckCellChildIsFsNote2(int i, int j, ICell cell, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
-    {
-        var results = new List<TextCellSuggestModel>();
-        if (string.IsNullOrWhiteSpace(cell?.ToString()))
-        {
-            return results;
-        }
-        var cellValue = cell.ToString()!;
-        var is2OrMoreSentenceCase = StringUtils.Has2OrMoreSentenceCase(cellValue);
-        if (!is2OrMoreSentenceCase)
-        {
-            return results;
-        }
+    //private static List<TextCellSuggestModel> TryCheckCellChildIsFsNote2(int i, int j, ICell cell, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
+    //{
+    //    var results = new List<TextCellSuggestModel>();
+    //    if (string.IsNullOrWhiteSpace(cell?.ToString()))
+    //    {
+    //        return results;
+    //    }
+    //    var cellValue = cell.ToString()!;
+    //    var is2OrMoreSentenceCase = StringUtils.Has2OrMoreSentenceCase(cellValue);
+    //    if (!is2OrMoreSentenceCase)
+    //    {
+    //        return results;
+    //    }
 
-        cellValue = cellValue.RemoveSign4VietnameseString();
-        var splited = StringUtils.SplitSentenceCase(cellValue);
-        int countIndex = 0;
-        foreach (var splitString in splited)
-        {
-            countIndex++;
-            var nomarlize = splitString.ToSimilarityCompareString();
-            if (string.IsNullOrWhiteSpace(nomarlize))
-            {
-                continue;
-            }
-            var cellSuggest = Test(childrentMappings, nomarlize, i, j);
-            if (cellSuggest != null)
-            {
-                cellSuggest.IndexInCell = countIndex - 1;
-                cellSuggest.CombineWithCell = null;
-                cellSuggest.CellStatus = CellStatus.Merge;
-                results.Add(cellSuggest);
-            }
-        }
-        var mergeCell = cell.GetListCellInMergeCell();
-        if (mergeCell != null && mergeCell.Count > 0)
-        {
-            var rows = mergeCell.Select(x => x.RowIndex).Distinct().ToList().Count;
-            var cols = mergeCell.Select(x => x.ColumnIndex).Distinct().ToList().Count;
-            if (rows > 1 && cols == 1)
-            {
-                // is combine multi rows
-                foreach (var item  in results)
-                {
-                    item.RetriveCell = new MatrixCellModel()
-                    {
-                        Col = item.Col,
-                        Row = item.Row + item.IndexInCell
-                    };
-                }
-            }
-            else if (cols > 1 && rows == 1)
-            {
-                // is combine multi cols
-                foreach (var item in results)
-                {
-                    item.RetriveCell = new MatrixCellModel()
-                    {
-                        Col = item.Col + item.IndexInCell,
-                        Row = item.Row,
-                    };
-                }
-            }
-        }
-        return results;
-    }
+    //    cellValue = cellValue.RemoveSign4VietnameseString();
+    //    var splited = StringUtils.SplitSentenceCase(cellValue);
+    //    int countIndex = 0;
+    //    foreach (var splitString in splited)
+    //    {
+    //        countIndex++;
+    //        var nomarlize = splitString.ToSimilarityCompareString();
+    //        if (string.IsNullOrWhiteSpace(nomarlize))
+    //        {
+    //            continue;
+    //        }
+    //        var cellSuggest = Test(childrentMappings, nomarlize, i, j);
+    //        if (cellSuggest != null)
+    //        {
+    //            cellSuggest.IndexInCell = countIndex - 1;
+    //            cellSuggest.CombineWithCell = null;
+    //            cellSuggest.CellStatus = CellStatus.Merge;
+    //            results.Add(cellSuggest);
+    //        }
+    //    }
+    //    var mergeCell = cell.GetListCellInMergeCell();
+    //    if (mergeCell != null && mergeCell.Count > 0)
+    //    {
+    //        var rows = mergeCell.Select(x => x.RowIndex).Distinct().ToList().Count;
+    //        var cols = mergeCell.Select(x => x.ColumnIndex).Distinct().ToList().Count;
+    //        if (rows > 1 && cols == 1)
+    //        {
+    //            // is combine multi rows
+    //            foreach (var item  in results)
+    //            {
+    //                item.RetriveCell = new MatrixCellModel()
+    //                {
+    //                    Col = item.Col,
+    //                    Row = item.Row + item.IndexInCell
+    //                };
+    //            }
+    //        }
+    //        else if (cols > 1 && rows == 1)
+    //        {
+    //            // is combine multi cols
+    //            foreach (var item in results)
+    //            {
+    //                item.RetriveCell = new MatrixCellModel()
+    //                {
+    //                    Col = item.Col + item.IndexInCell,
+    //                    Row = item.Row,
+    //                };
+    //            }
+    //        }
+    //    }
+    //    return results;
+    //}
 }

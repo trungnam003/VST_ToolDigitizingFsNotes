@@ -1,7 +1,6 @@
 ﻿
 using Ardalis.SmartEnum;
 using Force.DeepCloner;
-using Org.BouncyCastle.Ocsp;
 using System.Diagnostics;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
@@ -248,8 +247,7 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                 evaluators.ListMapEvaluators.Add(evaluator);
                 evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
                 evaluators.TextCellMapped.Add(request.ListTextCellSuggests[i]);
-                Debug.WriteLine($"(e)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
-
+                Debug.WriteLine($"(e1)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
             }
         }
         else
@@ -263,15 +261,11 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
             // Xử lý
 
             var rs = CountFsNoteNameWithInRange(start, end, request);
-            if(rs.Count > 0)
+            if (rs.Count > 0)
             {
                 draftCells.AddRange(rs);
             }
             draftCells.Sort(TextCellSuggestModel.Comparer);
-            //foreach (var item in draftCells)
-            //{
-            //    Debug.WriteLine(item);
-            //}
             if (request.ListMoneyCells.Count == draftCells.Count)
             {
                 for (int i = 0; i < request.ListMoneyCells.Count; i++)
@@ -284,7 +278,68 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                     evaluators.ListMapEvaluators.Add(evaluator);
                     evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
                     evaluators.TextCellMapped.Add(draftCells[i]);
-                    Debug.WriteLine($"(e)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+                    Debug.WriteLine($"(e2)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+                }
+            }
+            else if (request.ListMoneyCells.Count > draftCells.Count)
+            {
+                // Mở rộng vùng để map
+                var remain = request.ListMoneyCells.Count - draftCells.Count;
+
+                // tìm xuống dưới
+                int startBottom = draftCells.Last().Row + 1;
+                int endBottom = Range.End.Row;
+                var cellBottom = SeekBottomToGetCellSuggest(startBottom, endBottom, 0);
+                if (cellBottom != null)
+                {
+                    draftCells.Add(cellBottom);
+                    remain -= 1;
+                }
+
+                if(remain == 0)
+                {
+                    draftCells.Sort(TextCellSuggestModel.Comparer);
+                    for (int i = 0; i < request.ListMoneyCells.Count; i++)
+                    {
+                        var evaluator = new MapEvaluator(draftCells[i], request.ListMoneyCells[i])
+                        {
+                            MapType = MapType.MappedInRow,
+                            Status = MapEvaluatorStatus.Mapped
+                        };
+                        evaluators.ListMapEvaluators.Add(evaluator);
+                        evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
+                        evaluators.TextCellMapped.Add(draftCells[i]);
+                        Debug.WriteLine($"(ee2)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+                    }
+                    return;
+                }
+
+                // tìm lên trên
+                int startTop = draftCells.First().Row - 1;
+                int endTop = Range.Start.Row;
+                var cellTop = SeekTopToGetCellSuggest(startTop, endTop, 0);
+                
+                if (cellTop != null)
+                {
+                    draftCells.Add(cellTop);
+                    remain -= 1;
+                }
+                if (remain == 0)
+                {
+                    draftCells.Sort(TextCellSuggestModel.Comparer);
+                    for (int i = 0; i < request.ListMoneyCells.Count; i++)
+                    {
+                        var evaluator = new MapEvaluator(draftCells[i], request.ListMoneyCells[i])
+                        {
+                            MapType = MapType.MappedInRow,
+                            Status = MapEvaluatorStatus.Mapped
+                        };
+                        evaluators.ListMapEvaluators.Add(evaluator);
+                        evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
+                        evaluators.TextCellMapped.Add(draftCells[i]);
+                        Debug.WriteLine($"(ee2)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+                    }
+                    return;
                 }
             }
         }
@@ -296,15 +351,99 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
         }
     }
 
+    private TextCellSuggestModel? SeekTopToGetCellSuggest(int startIndex, int endIndex, int col)
+    {
+        const int maxSeed = 2;
+        var sheet = Uow.GetOcrSheet() ?? throw new ArgumentNullException();
+        int count = 0;
+
+        for (int i = startIndex; i >= endIndex; i--)
+        {
+            if (count >= maxSeed)
+            {
+                return null;
+            }
+            var cell = sheet.GetRow(i)?.GetCell(col);
+            var isValidCell = CoreUtils.TryGetCellValue(cell, out string cellValue);
+            if (isValidCell == false)
+            {
+                count++;
+                continue;
+            }
+
+            var hasCombine = StringUtils.StartWithLower(cellValue);
+            if (hasCombine)
+            {
+                var aboveCell = sheet.GetRow(i - 1)?.GetCell(col);
+                var isValidAboveCell = CoreUtils.TryGetCellValue(aboveCell, out string cellAboveValue);
+                hasCombine = hasCombine && isValidAboveCell && StringUtils.StartWithUpper(cellAboveValue);
+
+                if(hasCombine)
+                {
+                    var combineCell = CoreUtils.TryGetCombineCell(aboveCell!, cell);
+                    return combineCell;
+                }
+            }
+            else
+            {
+                var normalCell = new TextCellSuggestModel()
+                {
+                    Row = i,
+                    Col = col,
+                    CellValue = cellValue,
+                    CellStatus = CellStatus.Default
+                };
+                return normalCell;
+            }
+        }
+        return null;
+    }
+
+    private TextCellSuggestModel? SeekBottomToGetCellSuggest(int startIndex, int endIndex, int col)
+    {
+        const int maxSeed = 2;
+        int count = 0;
+        var sheet = Uow.GetOcrSheet() ?? throw new ArgumentNullException();
+        for (int i = startIndex; i <= endIndex; i++)
+        {
+            if (count >= maxSeed)
+            {
+                return null;
+            }
+            var cell = sheet.GetRow(i)?.GetCell(col);
+            var isValidCell = CoreUtils.TryGetCellValue(cell, out string cellValue);
+            if (isValidCell == false)
+            {
+                count++;
+                continue;
+            }
+            var combineCell = CoreUtils.TryGetCombineCell(cell!, sheet.GetRow(i + 1)?.GetCell(col));
+            if (combineCell != null)
+            {
+                return combineCell;
+            }
+
+            var normalCell = new TextCellSuggestModel()
+            {
+                Row = i,
+                Col = col,
+                CellValue = cellValue,
+                CellStatus = CellStatus.Default
+            };
+            return normalCell;
+        }
+        return null;
+    }
+
     private List<TextCellSuggestModel> CountFsNoteNameWithInRange(int startRow, int endRow, MapFsNoteWithMoneyChainRequest req)
     {
         var rowDetected = new HashSet<int>();
         var cols = new List<int>();
-        foreach(var item in req.ListTextCellSuggests)
+        foreach (var item in req.ListTextCellSuggests)
         {
             cols.Add(item.Col);
             rowDetected.Add(item.Row);
-            if(item.CombineWithCell != null)
+            if (item.CombineWithCell != null)
             {
                 rowDetected.Add(item.CombineWithCell.Row);
             }
@@ -313,7 +452,7 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
         var workbook = Uow.OcrWorkbook ?? throw new ArgumentNullException();
         // Kiểm tra bên trong có thể có chỉ tiêu khác hay không
         var newList = new List<TextCellSuggestModel>();
-        for(int i = startRow; i<= endRow; i++)
+        for (int i = startRow; i <= endRow; i++)
         {
             if (rowDetected.Contains(i))
                 continue;
@@ -325,14 +464,14 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                 continue;
 
             var mergeCells = CoreUtils.TryGetMergeCell(cell);
-            if(mergeCells != null)
+            if (mergeCells != null)
             {
                 newList.AddRange(mergeCells);
                 continue;
             }
 
-            var combineCell = CoreUtils.TryGetCombineCell(cell, sheet?.GetRow(i+1)?.GetCell(colIndex));
-            if(combineCell != null)
+            var combineCell = CoreUtils.TryGetCombineCell(cell, sheet?.GetRow(i + 1)?.GetCell(colIndex));
+            if (combineCell != null)
             {
                 newList.Add(combineCell);
                 i++;

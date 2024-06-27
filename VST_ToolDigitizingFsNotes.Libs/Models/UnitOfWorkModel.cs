@@ -1,4 +1,5 @@
-﻿using NPOI.XSSF.UserModel;
+﻿using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Models
 {
@@ -13,6 +14,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         public List<MoneyCellModel> MoneyCellModels { get; }
         public List<FsNoteParentModel> FsNoteParentModels { get; }
         public XSSFWorkbook? OcrWorkbook { get; set; }
+        public ISheet? GetOcrSheet() => OcrWorkbook?.GetSheetAt(0); 
         public HashSet<SpecifiedRange> SpecifiedRanges { get; } = [];
 
         private bool _disposed;

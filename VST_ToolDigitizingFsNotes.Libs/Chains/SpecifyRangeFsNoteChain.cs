@@ -6,7 +6,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Chains;
 
 public sealed class DetectRangeChainRequest : ChainBaseRequest<RangeDetectFsNote>
 {
-    public const int MaximumAllowRowRange = 60;
+    public const int MaximumAllowRowRange = 80;
     public MoneyCellModel MoneyCell { get; init; }
     public UnitOfWorkModel UnitOfWork { get; init; }
     public FsNoteParentModel Parent { get; init; }
@@ -254,7 +254,7 @@ public class DetectUsingSimilartyStringHanlder : HandleChainBase<DetectRangeChai
             {
                 continue;
             }
-            cellValue = cellValue.ToSystemNomalizeString();
+            cellValue = cellValue.ToSimilarityCompareString();
             var maxSimilarity = double.MinValue;
             foreach (var keyword in MapParentData.Keywords)
             {
@@ -370,7 +370,7 @@ public class DetectUsingDiffMatchPatchStringHandler : HandleChainBase<DetectRang
             {
                 continue;
             }
-            cellValue = cellValue.ToSystemNomalizeString();
+            cellValue = cellValue.ToSimilarityCompareString();
             var maxSimilarity = double.MinValue;
             foreach (var keyword in MapParentData.Keywords)
             {

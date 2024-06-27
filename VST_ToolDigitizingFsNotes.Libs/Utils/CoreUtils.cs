@@ -219,30 +219,45 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             return null;
         }
 
-        public static TextCellSuggestModel? TryGetCombineCell(ICell currCell, ICell? cellNext)
+        public static TextCellSuggestModel? TryGetCombineCell(ICell currCell, ICell? nextCell)
         {
-            if (cellNext == null || string.IsNullOrWhiteSpace(cellNext.ToString()))
+            var nextCellValue = nextCell?.ToString();
+            var currCellValue = currCell.ToString();
+
+            var isValidNextCell = nextCell != null && !string.IsNullOrWhiteSpace(nextCellValue) && StringUtils.StartWithLower(nextCellValue);
+            var isValidCurrentCell = !string.IsNullOrWhiteSpace(currCellValue) && StringUtils.StartWithUpper(currCellValue);
+
+            if (!isValidNextCell || !isValidCurrentCell)
+            {
                 return null;
+            }    
 
-            var cellNextValue = cellNext?.ToString()?.ToSimilarityCompareString();
+            nextCellValue = nextCellValue?.ToSimilarityCompareString();
+            currCellValue = currCellValue?.ToSimilarityCompareString();
 
-            if (!string.IsNullOrWhiteSpace(cellNextValue) && StringUtils.StartWithLower(cellNextValue) && cellNext != null)
+            if (!string.IsNullOrWhiteSpace(nextCellValue) && !string.IsNullOrWhiteSpace(currCellValue))
             {
                 TextCellSuggestModel model = new()
                 {
                     Row = currCell.RowIndex,
                     Col = currCell.ColumnIndex,
-                    CellValue = currCell.ToString()?.ToSimilarityCompareString() + " " + cellNextValue,
+                    CellValue = $"{currCellValue} {nextCellValue}",
                     CellStatus = CellStatus.Combine,
                     CombineWithCell = new MatrixCellModel()
                     {
-                        Row = cellNext.RowIndex,
-                        Col = cellNext.ColumnIndex,
+                        Row = nextCell!.RowIndex,
+                        Col = nextCell!.ColumnIndex,
                     }
                 };
                 return model;
             }
             return null;
+        }
+
+        public static bool TryGetCellValue(ICell? cell, out string cellValue)
+        {
+            cellValue = cell?.ToString()?.RemoveSign4VietnameseString().KeepCharacterOnly().Trim() ?? string.Empty;
+            return cell != null && !string.IsNullOrWhiteSpace(cellValue);
         }
 
         public static List<TextCellSuggestModel>? TryGetMergeCell(ICell cell)
@@ -252,14 +267,13 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
             {
                 return null;
             }
-            var cellValue = cell.ToString()!;
+            var cellValue = cell.ToString()?.RemoveSign4VietnameseString().Trim() ?? string.Empty;
             var is2OrMoreSentenceCase = StringUtils.Has2OrMoreSentenceCase(cellValue);
             if (!is2OrMoreSentenceCase)
             {
                 return null;
             }
-            cellValue = cellValue.RemoveSign4VietnameseString();
-            var splited = StringUtils.SplitSentenceCase(cellValue.Trim());
+            var splited = StringUtils.SplitSentenceCase(cellValue);
             int countIndex = 0;
             foreach (var splitString in splited)
             {
@@ -279,6 +293,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
                 };
                 results.Add(cellSuggest);
             }
+            // set lại vị trí cho các cell (nếu có thể)
             var mergeCell = cell.GetListCellInMergeCell();
             if (mergeCell != null && mergeCell.Count > 0)
             {

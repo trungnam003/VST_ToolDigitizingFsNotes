@@ -154,17 +154,6 @@ public class MappingService : IMappingService
             var direction = CoreUtils.DetermineDirection(input);
             if (direction == Direction.Row)
             {
-                //foreach (var suggest in suggests)
-                //{
-                //    if(suggest.RetriveCell == null && suggest.CellStatus == CellStatus.Merge)
-                //    {
-                //        suggest.RetriveCell = new MatrixCellModel()
-                //        {
-                //            Col = suggest.Col,
-                //            Row = suggest.Row + suggest.IndexInCell
-                //        };
-                //    }
-                //}
                 HandleMappingRowDirection(uow, dataMap, range);
             }
             else if (direction == Direction.Column)

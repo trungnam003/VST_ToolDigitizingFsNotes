@@ -36,12 +36,23 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
         {
             return CharacterOnlyRegex().Replace(s, "");
         }
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
         public static string ToSystemNomalizeString(this string s)
         {
             return s.RemoveSign4VietnameseString().RemoveSpecialCharacters().Trim().ToLower();
         }
 
+        /// <summary>
+        /// Xóa ký tự vietnamese, số và ký tự đặc biệt
+        /// chỉ giữ lại ký tự chữ cái và khoảng trắng
+        ///  s.RemoveSign4VietnameseString().KeepCharacterOnly().Trim().ToLower()
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
         public static string ToSimilarityCompareString(this string s)
         {
             return s.RemoveSign4VietnameseString().KeepCharacterOnly().Trim().ToLower();
@@ -53,8 +64,8 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
         [GeneratedRegex("[^a-zA-Z0-9_.\\s]+", RegexOptions.Compiled)]
         private static partial Regex NormalCharacterRegex();
 
-        [GeneratedRegex("[^a-z0-9A-Z_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễếệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵýỷỹ\\s]+", RegexOptions.Compiled)]
-        private static partial Regex ViNormalCharacterRegex();
+        //[GeneratedRegex("[^a-z0-9A-Z_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễếệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵýỷỹ\\s]+", RegexOptions.Compiled)]
+        //private static partial Regex ViNormalCharacterRegex();
 
         [GeneratedRegex("[^a-zA-Z\\s]+", RegexOptions.Compiled)]
         private static partial Regex CharacterOnlyRegex();
@@ -168,7 +179,6 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
 
         public static bool Has2OrMoreSentenceCase(string s)
         {
-            s = s.RemoveSign4VietnameseString().Trim();
             var regex = SentenceCaseRegex();
             return regex.Matches(s).Count >= 2;
         }

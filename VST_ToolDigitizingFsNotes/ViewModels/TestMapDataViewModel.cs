@@ -140,7 +140,7 @@ public partial class TestMapDataViewModel
         await taskDetectData;
         await taskLoadInputData;
 
-        _detectService.GroupFsNoteDataRange(uow);
+        //_detectService.GroupFsNoteDataRange(uow);
     }
 
 }
