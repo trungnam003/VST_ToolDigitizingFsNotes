@@ -140,6 +140,7 @@ public class MappingService : IMappingService
         {
             return;
         }
+        MapEvaluators? rs = null;
         foreach (var range in ranges)
         {
             var suggests = range.ListTextCellSuggestModels;
@@ -150,29 +151,125 @@ public class MappingService : IMappingService
             {
                 continue;
             }
-
             var direction = CoreUtils.DetermineDirection(input);
             if (direction == Direction.Row)
             {
-                HandleMappingRowDirection(uow, dataMap, range);
+                rs = HandleMappingRowDirection(uow, dataMap, range);
+
             }
             else if (direction == Direction.Column)
             {
-                HandleMappingColumnDirection(uow, dataMap, range);
+                rs = HandleMappingColumnDirection(uow, dataMap, range);
+
             }
             else if (direction == Direction.Unknown
                 && input.Count == 1)
             {
                 var debug = 1;
             }
+
+            if (rs != null)
+            {
+                foreach (var evaluator in rs.ListMapEvaluators)
+                {
+                    var id = evaluator.textCellSuggest.NoteId;
+                    var value = evaluator.moneyCell.Value;
+                    if (dataMap.Result.TryGetValue(id, out var fsNoteModel))
+                    {
+                        fsNoteModel.Value += value;
+                        fsNoteModel.Values.Add(value);
+                    }
+                    else
+                    {
+                        if (dataMap.HasOtherFsNoteId)
+                        {
+                            dataMap.Result[dataMap.OtherFsNoteId].Value += value;
+                            dataMap.Result[dataMap.OtherFsNoteId].Values.Add(value);
+                        }
+                        else if (value < 0)
+                        {
+                            dataMap.Result[dataMap.NegOtherFsNoteId].Value += value;
+                            dataMap.Result[dataMap.NegOtherFsNoteId].Values.Add(value);
+                        }
+                        else if (value > 0)
+                        {
+                            dataMap.Result[dataMap.PosOtherFsNoteId].Value += value;
+                            dataMap.Result[dataMap.PosOtherFsNoteId].Values.Add(value);
+                        }
+                    }
+                    
+                }
+
+                if (rs.RemainMoneys != null && rs.RemainMoneys.Count != 0)
+                {
+                    foreach (var remainMoney in rs.RemainMoneys)
+                    {
+                        var remainValue = remainMoney.Value;
+
+                        if (dataMap.HasOtherFsNoteId)
+                        {
+                            dataMap.Result[dataMap.OtherFsNoteId].Value += remainValue;
+                            dataMap.Result[dataMap.OtherFsNoteId].Values.Add(remainValue);
+                        }
+                        else if (remainValue < 0)
+                        {
+                            dataMap.Result[dataMap.NegOtherFsNoteId].Value += remainValue;
+                            dataMap.Result[dataMap.NegOtherFsNoteId].Values.Add(remainValue);
+                        }
+                        else if (remainValue > 0)
+                        {
+                            dataMap.Result[dataMap.PosOtherFsNoteId].Value += remainValue;
+                            dataMap.Result[dataMap.PosOtherFsNoteId].Values.Add(remainValue);
+                        }
+
+                    }
+                }
+
+                if (!dataMap.HasOtherFsNoteId)
+                {
+                    // pos 
+                    dataMap.Result.TryGetValue(dataMap.PosOtherFsNoteId, out var posModel);
+                    // neg
+                    dataMap.Result.TryGetValue(dataMap.NegOtherFsNoteId, out var negModel);
+
+                    if (posModel != null && negModel != null)
+                    {
+                        TransferNumbers( posModel.Values, negModel.Values);
+                    }
+
+                }
+
+                break;
+            }
         }
     }
-    private static void HandleMappingRowDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
+    static void TransferNumbers( List<double> positiveNumbers,  List<double> negativeNumbers)
+    {
+        // Chuyển tất cả các số dương từ negativeNumbers sang positiveNumbers
+        var positiveFromNegative = negativeNumbers.Where(x => x > 0).ToList();
+        positiveNumbers.AddRange(positiveFromNegative);
+
+        // Chuyển tất cả các số âm từ positiveNumbers sang negativeNumbers
+        var negativeFromPositive = positiveNumbers.Where(x => x < 0).ToList();
+        negativeNumbers.AddRange(negativeFromPositive);
+
+        // Xóa các số đã chuyển từ danh sách gốc
+        positiveNumbers.RemoveAll(x => x < 0);
+        negativeNumbers.RemoveAll(x => x > 0);
+    }
+    /// <summary>
+    /// Map các chỉ tiêu theo hàng
+    /// </summary>
+    /// <param name="uow"></param>
+    /// <param name="dataMap"></param>
+    /// <param name="range"></param>
+    private static MapEvaluators? HandleMappingRowDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
     {
         if (range.MoneyResults == null)
         {
-            return;
+            return null;
         }
+        MapEvaluators? mapEvaluators = null;
         var moneyCols = range.MoneyResults.DataRows;
         foreach (var moneys in moneyCols)
         {
@@ -182,17 +279,33 @@ public class MappingService : IMappingService
 
             var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones);
             var handler1 = new MapInColHandler();
-            
+
             handler1.Handle(request);
+
+            if (request.Handled && request.Result != null)
+            {
+                if (mapEvaluators == null || mapEvaluators.ListMapEvaluators.Count < request.Result.ListMapEvaluators.Count)
+                {
+                    mapEvaluators = request.Result;
+                }
+            }
         }
+        return mapEvaluators;
     }
-    private static void HandleMappingColumnDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
+    /// <summary>
+    /// Map các chỉ tiêu theo cột
+    /// </summary>
+    /// <param name="uow"></param>
+    /// <param name="dataMap"></param>
+    /// <param name="range"></param>
+    private static MapEvaluators? HandleMappingColumnDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
     {
         if (range.MoneyResults == null)
         {
-            return;
+            return null;
         }
         var moneyCols = range.MoneyResults.DataCols;
+        MapEvaluators? mapEvaluators = null;
         foreach (var moneys in moneyCols)
         {
             var moneyClones = moneys.Select(x => x.DeepClone()).ToList();
@@ -204,7 +317,16 @@ public class MappingService : IMappingService
             var handler2 = new MapWhenOcrLineBreakErrorHandler(uow, range, dataMap);
             handler1.SetNext(handler2);
             handler1.Handle(request);
+
+            if (request.Handled && request.Result != null)
+            {
+                if (mapEvaluators == null || mapEvaluators.ListMapEvaluators.Count < request.Result.ListMapEvaluators.Count)
+                {
+                    mapEvaluators = request.Result;
+                }
+            }
         }
+        return mapEvaluators;
     }
 
     public void CombineUnitOfWorks(UnitOfWorkModel uow)

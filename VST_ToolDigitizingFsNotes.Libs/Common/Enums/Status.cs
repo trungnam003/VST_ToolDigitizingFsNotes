@@ -20,11 +20,11 @@ public class MapFsNoteStatus(string name, int value)
     /// <summary>
     /// Bỏ qua map dữ liệu
     /// </summary>
-    public static readonly MapFsNoteStatus IgnoreMap = new(nameof(IgnoreMap), 3);
+    //public static readonly MapFsNoteStatus IgnoreMap = new(nameof(IgnoreMap), 3);
 
     public static readonly MapFsNoteStatus CanMap = new(nameof(CanMap), 4);
 
-    public static readonly MapFsNoteStatus ReadyToMap = new(nameof(ReadyToMap), 5);
+    //public static readonly MapFsNoteStatus ReadyToMap = new(nameof(ReadyToMap), 5);
 }
 
 public class DetectRangeStatus(string name, int value)
@@ -45,7 +45,7 @@ public class DetectRangeStatus(string name, int value)
     /// <summary>
     /// Bỏ qua phát hiện
     /// </summary>
-    public static readonly DetectRangeStatus IgnoreRange = new(nameof(IgnoreRange), 3);
+    //public static readonly DetectRangeStatus IgnoreRange = new(nameof(IgnoreRange), 3);
     public static readonly DetectRangeStatus AllowNextHandle = new(nameof(AllowNextHandle), 4);
 
 }

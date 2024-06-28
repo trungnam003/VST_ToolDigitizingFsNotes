@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using Newtonsoft.Json;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Models
 {
@@ -113,10 +114,18 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     /// </summary>
     public class SheetFsNoteDataModel
     {
+        //public int Id { get; set; }
+        //public string Name { get; set; }
+        //public double TotalValue { get; set; }
+        //public List<double> Values { get; set; }
+        //public bool IsParent { get; set; }
         public int Id { get; set; }
         public string Name { get; set; }
+
         public double TotalValue { get; set; }
+
         public List<double> Values { get; set; }
+
         public bool IsParent { get; set; }
     }
 

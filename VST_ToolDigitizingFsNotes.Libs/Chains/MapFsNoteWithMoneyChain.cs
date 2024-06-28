@@ -1,6 +1,4 @@
-﻿
-using Ardalis.SmartEnum;
-using Force.DeepCloner;
+﻿using Force.DeepCloner;
 using System.Diagnostics;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Utils;
@@ -11,8 +9,6 @@ public class MapFsNoteWithMoneyChainRequest : ChainBaseRequest<MapEvaluators>
 {
     public List<TextCellSuggestModel> ListTextCellSuggests { get; init; }
     public List<MoneyCellModel> ListMoneyCells { get; init; }
-
-
     public MapFsNoteWithMoneyChainRequest(List<TextCellSuggestModel> listTextCellSuggests, List<MoneyCellModel> listMoneyCells)
     {
         ListTextCellSuggests = listTextCellSuggests;
@@ -20,26 +16,11 @@ public class MapFsNoteWithMoneyChainRequest : ChainBaseRequest<MapEvaluators>
     }
 }
 
-public class MapEvaluatorStatus : SmartEnum<MapEvaluatorStatus>
+public enum MapEvaluatorType
 {
-    public static readonly MapEvaluatorStatus CantMap = new(nameof(CantMap), -1);
-    public static readonly MapEvaluatorStatus NotYetMapped = new(nameof(NotYetMapped), 0);
-    public static readonly MapEvaluatorStatus Mapped = new(nameof(Mapped), 1);
-
-    public MapEvaluatorStatus(string name, int value) : base(name, value)
-    {
-    }
-}
-
-public class MapType : SmartEnum<MapType>
-{
-    public static readonly MapType None = new(nameof(None), 0);
-    public static readonly MapType MappedInRow = new(nameof(MappedInRow), 1);
-    public static readonly MapType MappedInColumn = new(nameof(MappedInColumn), 2);
-
-    public MapType(string name, int value) : base(name, value)
-    {
-    }
+    None,
+    MappedInRow,
+    MappedInColumn
 }
 
 public class MapEvaluator
@@ -47,11 +28,7 @@ public class MapEvaluator
     public TextCellSuggestModel textCellSuggest { get; init; }
     public MoneyCellModel moneyCell { get; init; }
 
-    public double Distance { get; set; }
-    public double Angle { get; set; }
-
-    public MapEvaluatorStatus Status { get; set; } = MapEvaluatorStatus.NotYetMapped;
-    public MapType MapType { get; set; } = MapType.None;
+    public MapEvaluatorType MapEvaluatorType { get; set; } = MapEvaluatorType.None;
 
     public MapEvaluator(TextCellSuggestModel textCellSuggest, MoneyCellModel moneyCell)
     {
@@ -65,6 +42,7 @@ public class MapEvaluators
     public List<MapEvaluator> ListMapEvaluators { get; init; } = [];
     public HashSet<MoneyCellModel> MoneyCellMapped { get; init; } = [];
     public HashSet<TextCellSuggestModel> TextCellMapped { get; init; } = [];
+    public List<MoneyCellModel>? RemainMoneys { get; set; }
 }
 
 
@@ -84,6 +62,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
         var evaluators = new MapEvaluators();
         request.Result = evaluators;
 
+        // Map trên cùng 1 hàng
         foreach (var money in request.ListMoneyCells)
         {
             var row = money.Row;
@@ -102,8 +81,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
 
             var evaluator = new MapEvaluator(rowWithRow, money)
             {
-                MapType = MapType.MappedInRow,
-                Status = MapEvaluatorStatus.Mapped
+                MapEvaluatorType = MapEvaluatorType.MappedInRow,
             };
             evaluators.ListMapEvaluators.Add(evaluator);
             evaluators.MoneyCellMapped.Add(money);
@@ -111,6 +89,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
             Debug.WriteLine($">> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
         }
 
+        // Map trên cùng 1 hàng khi có các cell bị merge
         foreach (var money in request.ListMoneyCells.Except(evaluators.MoneyCellMapped))
         {
             var row = money.Row;
@@ -127,8 +106,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
             }
             var evaluator = new MapEvaluator(rowWithRowMerge, money)
             {
-                MapType = MapType.MappedInRow,
-                Status = MapEvaluatorStatus.Mapped
+                MapEvaluatorType = MapEvaluatorType.MappedInRow,
             };
             evaluators.ListMapEvaluators.Add(evaluator);
             evaluators.MoneyCellMapped.Add(money);
@@ -136,6 +114,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
             Debug.WriteLine($"M>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
         }
 
+        // Map trên cùng 1 hàng khi có các cell bị merge và có nhiều cell
         foreach (var money in request.ListMoneyCells.Except(evaluators.MoneyCellMapped).GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList()))
         {
             var row = money.Key;
@@ -152,8 +131,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
                     var item = rowWithRowMerges[i];
                     var evaluator = new MapEvaluator(item, money.Value[i])
                     {
-                        MapType = MapType.MappedInRow,
-                        Status = MapEvaluatorStatus.Mapped
+                        MapEvaluatorType = MapEvaluatorType.MappedInRow,
                     };
                     evaluators.ListMapEvaluators.Add(evaluator);
                     evaluators.MoneyCellMapped.Add(money.Value[i]);
@@ -195,8 +173,7 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
                         {
                             var evaluator = new MapEvaluator(textCellMinDistance, money)
                             {
-                                MapType = MapType.MappedInRow,
-                                Status = MapEvaluatorStatus.Mapped
+                                MapEvaluatorType = MapEvaluatorType.MappedInRow,
                             };
                             evaluators.ListMapEvaluators.Add(evaluator);
                             evaluators.MoneyCellMapped.Add(money);
@@ -212,10 +189,22 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
                 }
             }
         }
-        _nextChain?.Handle(request);
+
+        if (evaluators.ListMapEvaluators.Count == 0)
+        {
+            request.Result = null;
+            _nextChain?.Handle(request);
+        }
+        else
+        {
+            request.SetHandled(true);
+            request.Result.RemainMoneys = request.ListMoneyCells.Except(evaluators.MoneyCellMapped).ToList();
+        }
     }
 }
-
+/// <summary>
+/// Map khi có lỗi xuất hiện khi OCR line break
+/// </summary>
 public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
 {
     public UnitOfWorkModel Uow { get; init; }
@@ -241,8 +230,7 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
             {
                 var evaluator = new MapEvaluator(request.ListTextCellSuggests[i], request.ListMoneyCells[i])
                 {
-                    MapType = MapType.MappedInRow,
-                    Status = MapEvaluatorStatus.Mapped
+                    MapEvaluatorType = MapEvaluatorType.MappedInRow,
                 };
                 evaluators.ListMapEvaluators.Add(evaluator);
                 evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
@@ -272,8 +260,7 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                 {
                     var evaluator = new MapEvaluator(draftCells[i], request.ListMoneyCells[i])
                     {
-                        MapType = MapType.MappedInRow,
-                        Status = MapEvaluatorStatus.Mapped
+                        MapEvaluatorType = MapEvaluatorType.MappedInRow,
                     };
                     evaluators.ListMapEvaluators.Add(evaluator);
                     evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
@@ -296,15 +283,14 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                     remain -= 1;
                 }
 
-                if(remain == 0)
+                if (remain == 0)
                 {
                     draftCells.Sort(TextCellSuggestModel.Comparer);
                     for (int i = 0; i < request.ListMoneyCells.Count; i++)
                     {
                         var evaluator = new MapEvaluator(draftCells[i], request.ListMoneyCells[i])
                         {
-                            MapType = MapType.MappedInRow,
-                            Status = MapEvaluatorStatus.Mapped
+                            MapEvaluatorType = MapEvaluatorType.MappedInRow,
                         };
                         evaluators.ListMapEvaluators.Add(evaluator);
                         evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
@@ -318,7 +304,7 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                 int startTop = draftCells.First().Row - 1;
                 int endTop = Range.Start.Row;
                 var cellTop = SeekTopToGetCellSuggest(startTop, endTop, 0);
-                
+
                 if (cellTop != null)
                 {
                     draftCells.Add(cellTop);
@@ -331,8 +317,7 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                     {
                         var evaluator = new MapEvaluator(draftCells[i], request.ListMoneyCells[i])
                         {
-                            MapType = MapType.MappedInRow,
-                            Status = MapEvaluatorStatus.Mapped
+                            MapEvaluatorType = MapEvaluatorType.MappedInRow,
                         };
                         evaluators.ListMapEvaluators.Add(evaluator);
                         evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
@@ -344,7 +329,12 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
             }
         }
 
-        if (evaluators.ListMapEvaluators.Count == request.ListMoneyCells.Count)
+        if (evaluators.ListMapEvaluators.Count == 0)
+        {
+            request.Result = null;
+            request.SetHandled(false);
+        }
+        else if (evaluators.ListMapEvaluators.Count == request.ListMoneyCells.Count)
         {
             request.SetHandled(true);
             return;
@@ -378,7 +368,7 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                 var isValidAboveCell = CoreUtils.TryGetCellValue(aboveCell, out string cellAboveValue);
                 hasCombine = hasCombine && isValidAboveCell && StringUtils.StartWithUpper(cellAboveValue);
 
-                if(hasCombine)
+                if (hasCombine)
                 {
                     var combineCell = CoreUtils.TryGetCombineCell(aboveCell!, cell);
                     return combineCell;
@@ -550,8 +540,7 @@ public class MapInColHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
 
             var evaluator = new MapEvaluator(suggestInColFirst, money)
             {
-                MapType = MapType.MappedInColumn,
-                Status = MapEvaluatorStatus.Mapped
+                MapEvaluatorType = MapEvaluatorType.MappedInColumn,
             };
             evaluators.ListMapEvaluators.Add(evaluator);
             evaluators.MoneyCellMapped.Add(money);
@@ -562,9 +551,11 @@ public class MapInColHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
         if (evaluators.ListMapEvaluators.Count != 0)
         {
             request.Result = evaluators;
+            request.SetHandled(true);
+            request.Result.RemainMoneys = request.ListMoneyCells.Except(evaluators.MoneyCellMapped).ToList();
             if (evaluators.ListMapEvaluators.Count == request.ListMoneyCells.Count)
             {
-                request.SetHandled(true);
+                //request.SetHandled(true);
                 return;
             }
         }

@@ -320,6 +320,20 @@ public partial class WorkspaceViewModel
         //await t2;
         startWatch.Stop();
 
+        var dict = sheet.Data.Where(x => !x.IsParent).ToDictionary(x => x.Id, x => x);
+
+        foreach (var parent in sheet.UowAbbyy15.FsNoteParentModels)
+        {
+            foreach (var child in parent.Children)
+            {
+                if (dict.TryGetValue(child.FsNoteId, out var value))
+                {
+                    value.TotalValue = child.Value;
+                    value.Values = child.Values;
+                }
+            }
+        }
+
         Debug.WriteLine($"(1) Time elapsed: {startWatch.ElapsedMilliseconds} ms");
 
     }

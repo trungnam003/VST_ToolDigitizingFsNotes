@@ -1,4 +1,5 @@
-﻿using NPOI.SS.UserModel;
+﻿using Force.DeepCloner;
+using NPOI.SS.UserModel;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Chains;
@@ -214,7 +215,7 @@ public partial class DetectService : IDetectService
                 noteName = childMapping.Name;
             }
         }
-        var isValid =  similarity != ZERO && similarity >= StringSimilarityUtils.AcceptableSimilarity;
+        var isValid = similarity != ZERO && similarity >= StringSimilarityUtils.AcceptableSimilarity;
         if (isValid)
         {
             // set giá trị cho model
@@ -247,14 +248,36 @@ public partial class DetectService
             {
                 FsNoteId = parent.FsNoteId,
                 Group = parent.Group,
-                FsNoteParentModel = parent
+                FsNoteParentModel = parent,
             };
+
             HandleDetectFsNoteParentAsync(uow, parent, fsNoteDataMap, listMoneysEqualParentValue);
             _mappingService.MapFsNoteWithMoney(uow, fsNoteDataMap);
             Debug.WriteLine("============================ Kết thúc ============================\n");
+
+            parent.Children.ForEach(x =>
+            {
+                fsNoteDataMap.Result.TryGetValue(x.FsNoteId, out var fsNote);
+                if (fsNote != null)
+                {
+                    x.Value = fsNote.Value;
+                    x.Values.AddRange(fsNote.Values);
+                }
+            });
         }
     }
 
+    /// <summary>
+    /// Tìm kiếm các khu vực phù hợp cho chỉ tiêu cha để xác định các chỉ tiêu con
+    /// 1. Tìm khu vực phù hợp nhất cho chỉ tiêu cha
+    /// 2. Tìm các số tiền
+    /// 3. Tìm các chỉ tiêu con
+    /// => Đưa dữ liệu vào dataMap, để tiến hành map dữ liệu
+    /// </summary>
+    /// <param name="uow"></param>
+    /// <param name="parent"></param>
+    /// <param name="dataMap"></param>
+    /// <param name="moneys"></param>
     private void HandleDetectFsNoteParentAsync(UnitOfWorkModel uow, FsNoteParentModel parent, FsNoteDataMap dataMap, List<MoneyCellModel> moneys)
     {
         var results = new List<RangeDetectFsNote>();
@@ -264,6 +287,32 @@ public partial class DetectService
             Debug.WriteLine("=> bỏ qua xử lý");
             return;
         }
+
+        parent.Children.ForEach(x =>
+        {
+            dataMap.Result.Add(x.FsNoteId, x.DeepClone());
+        });
+
+        var otherAll = _mapping[parent.FsNoteId].Children[parent.Group - 1]
+            .Where(x => x.OtherType == MappingOtherType.All)
+            .FirstOrDefault();
+        dataMap.OtherFsNoteId = otherAll == null ? -1 : otherAll.Id;
+
+        if (!dataMap.HasOtherFsNoteId)
+        {
+            var otherPos = _mapping[parent.FsNoteId].Children[parent.Group - 1]
+                .Where(x => x.OtherType == MappingOtherType.Positive)
+                .FirstOrDefault();
+
+            dataMap.PosOtherFsNoteId = otherPos == null ? -1 : otherPos.Id;
+
+            var otherNeg = _mapping[parent.FsNoteId].Children[parent.Group - 1]
+                .Where(x => x.OtherType == MappingOtherType.Negative)
+                .FirstOrDefault();
+
+            dataMap.NegOtherFsNoteId = otherNeg == null ? -1 : otherNeg.Id;
+        }
+
         RangeDetectFsNote? prevRangeSpecified = null;
         foreach (var money in moneys)
         {
@@ -364,7 +413,7 @@ public partial class DetectService
 
         var startRow = range.Start.Row;
         var endRow = range.End.Row;
-       
+
         for (int i = startRow; i <= endRow; i++)
         {
             IRow? row = workbook?.GetSheetAt(0).GetRow(i);
@@ -480,7 +529,7 @@ public partial class DetectService
     //    }
     //    return result;
     //}
-   
+
     private static TextCellSuggestModel? TryCheckCellChildIsFsNote1_v2(IRow? bottomRow, ICell cell, List<FsNoteMappingModel> childrentMappings)
     {
         TextCellSuggestModel? result = null;
@@ -498,7 +547,7 @@ public partial class DetectService
         var isValidFsNoteCombine = false;
         if (combineCell != null)
         {
-            isValidFsNoteCombine =  TryCheckIsFsNote(combineCell, childrentMappings, out var _similarity);
+            isValidFsNoteCombine = TryCheckIsFsNote(combineCell, childrentMappings, out var _similarity);
             similarityCombine = _similarity;
         }
 
@@ -537,7 +586,7 @@ public partial class DetectService
             return null;
         var results = new List<TextCellSuggestModel>();
 
-        foreach(var mergeCell in mergeCells)
+        foreach (var mergeCell in mergeCells)
         {
             var isFsNote = TryCheckIsFsNote(mergeCell, childrentMappings, out var similarity);
             if (isFsNote)
@@ -547,7 +596,7 @@ public partial class DetectService
             }
         }
         return results;
-        
+
     }
     //private static List<TextCellSuggestModel> TryCheckCellChildIsFsNote2(int i, int j, ICell cell, List<FsNoteMappingModel> childrentMappings, RangeDetectFsNote range)
     //{

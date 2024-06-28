@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.Views"
              xmlns:vm="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.ViewModels"
+             xmlns:cvt="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.Converters"
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              mc:Ignorable="d" 
              Background="WhiteSmoke"
@@ -12,6 +13,8 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <cvt:DoubleToStringConverter x:Key="DoubleToStringConverter"/>
+        <cvt:ListDoubleToStringConverter x:Key="ListDoubleToStringConverter"/>
     </UserControl.Resources>
 
     <Grid>
@@ -110,8 +113,8 @@
                                 <Style TargetType="DataGridCell">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsParent}" Value="True">
-                                            <Setter Property="Background" Value="Gray" />
-                                            <Setter Property="Foreground" Value="Black" />
+                                            <Setter Property="Background" Value="#c2c2c2" />
+                                            <Setter Property="Foreground" Value="#1a1a1a" />
                                             <Setter Property="FontWeight" Value="Bold" />
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -120,7 +123,8 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Id" Binding="{Binding Id}"></DataGridTextColumn>
                                 <DataGridTextColumn Header="Tên chỉ tiêu" Binding="{Binding Name}"></DataGridTextColumn>
-                                <DataGridTextColumn Header="Giá trị" Binding="{Binding TotalValue}"></DataGridTextColumn>
+                                <DataGridTextColumn Header="Giá trị" Binding="{Binding TotalValue, Converter={StaticResource DoubleToStringConverter}}"></DataGridTextColumn>
+                                <DataGridTextColumn Header="Cộng dồn" Binding="{Binding Values, Converter={StaticResource ListDoubleToStringConverter}}"></DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>

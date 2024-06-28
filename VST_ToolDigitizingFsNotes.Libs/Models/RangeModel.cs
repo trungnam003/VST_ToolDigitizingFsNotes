@@ -10,6 +10,14 @@ public class FsNoteDataMap
     public List<RangeDetectFsNote>? RangeDetectFsNotes { get; set; }
     public required FsNoteParentModel FsNoteParentModel { get; set; }
     public MapFsNoteStatus MapStatus { get; set; } = MapFsNoteStatus.NotYetMapped;
+    public Dictionary<int, FsNoteModel> Result { get; } = [];
+
+    public int OtherFsNoteId { get; set; } = -1;
+    public int PosOtherFsNoteId { get; set; } = -1;
+    public int NegOtherFsNoteId { get; set; } = -1;
+    public bool HasOtherFsNoteId => OtherFsNoteId != -1;
+    public bool HasPosOtherFsNoteId => PosOtherFsNoteId != -1 && !HasOtherFsNoteId;
+    public bool HasNegOtherFsNoteId => NegOtherFsNoteId != -1 && !HasOtherFsNoteId;
 }
 
 public class RangeDetectFsNote
@@ -17,7 +25,6 @@ public class RangeDetectFsNote
     public required MatrixCellModel Start { get; set; }
     public required MatrixCellModel End { get; set; }
     public required MoneyCellModel MoneyCellModel { get; set; }
-
     public SpecifyMoneyResult? MoneyResults { get; set; }
 
     public List<TextCellSuggestModel>? ListTextCellSuggestModels { get; set; }
