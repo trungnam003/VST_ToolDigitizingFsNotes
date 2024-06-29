@@ -56,7 +56,14 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
         {
             try
             {
-                var list = DetectUtils.FindAllSubsetSums(moneysCol, Math.Abs(parent!.Value), x => (x.Value),
+                var data = moneysCol;
+                if (moneysCol.Count > SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength)
+                {
+                    // split list
+                    data = moneysCol.Take(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
+                }
+
+                var list = DetectUtils.FindAllSubsetSums(data, Math.Abs(parent!.Value), x => (x.Value),
                     SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
                 result.DataCols.AddRange(list);
             }
@@ -71,7 +78,13 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
         {
             try
             {
-                var list = DetectUtils.FindAllSubsetSums(moneysRow, Math.Abs(parent!.Value), x => (x.Value),
+                var data = moneysRow;
+                if (moneysRow.Count > SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength)
+                {
+                    // split list
+                    data = moneysRow.Take(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
+                }
+                var list = DetectUtils.FindAllSubsetSums(data, Math.Abs(parent!.Value), x => (x.Value),
                     SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
                 result.DataRows.AddRange(list);
             }

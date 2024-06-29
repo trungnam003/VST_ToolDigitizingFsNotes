@@ -235,6 +235,8 @@ public class MappingService : IMappingService
                     if (posModel != null && negModel != null)
                     {
                         TransferNumbers( posModel.Values, negModel.Values);
+                        posModel.Value = posModel.Values.Sum();
+                        negModel.Value = negModel.Values.Sum();
                     }
 
                 }
