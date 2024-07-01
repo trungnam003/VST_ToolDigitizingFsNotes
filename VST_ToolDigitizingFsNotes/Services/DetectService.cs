@@ -313,14 +313,14 @@ public partial class DetectService
             dataMap.NegOtherFsNoteId = otherNeg == null ? -1 : otherNeg.Id;
         }
 
-        RangeDetectFsNote? prevRangeSpecified = null;
+        //RangeDetectFsNote? prevRangeSpecified = null;
         foreach (var money in moneys)
         {
             // check current money is already in prev range
-            if (prevRangeSpecified != null && prevRangeSpecified.IsMoneyInThisRange(money))
-            {
-                continue;
-            }
+            //if (prevRangeSpecified != null && prevRangeSpecified.IsMoneyInThisRange(money))
+            //{
+            //    continue;
+            //}
             DetectRangeChainRequest request = new(uow, parent, money);
             // Xác định khu vực phù hợp nhất cho chỉ tiêu dựa trên heading
             var handler1 = new DetectUsingHeadingHandler(mapParentData);
@@ -340,7 +340,7 @@ public partial class DetectService
             var result = request.Result;
             result.DetectRangeStatus = DetectRangeStatus.AllowNextHandle;
             results.Add(result);
-            prevRangeSpecified = result;
+            //prevRangeSpecified = result;
         }
 
         dataMap.RangeDetectFsNotes = results.Count > 0 ? results : null;
@@ -585,9 +585,14 @@ public partial class DetectService
         if (mergeCells == null)
             return null;
         var results = new List<TextCellSuggestModel>();
-
+        
         foreach (var mergeCell in mergeCells)
         {
+            // check merge cell value at least 1 space
+            if (string.IsNullOrWhiteSpace(mergeCell.CellValue) || !mergeCell.CellValue.Contains(' '))
+            {
+                break;
+            }
             var isFsNote = TryCheckIsFsNote(mergeCell, childrentMappings, out var similarity);
             if (isFsNote)
             {

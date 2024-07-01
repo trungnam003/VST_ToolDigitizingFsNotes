@@ -297,6 +297,16 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                         evaluators.TextCellMapped.Add(draftCells[i]);
                         Debug.WriteLine($"(ee2)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
                     }
+                    if (evaluators.ListMapEvaluators.Count == 0)
+                    {
+                        request.Result = null;
+                        request.SetHandled(false);
+                    }
+                    else if (evaluators.ListMapEvaluators.Count == request.ListMoneyCells.Count)
+                    {
+                        request.SetHandled(true);
+                        return;
+                    }
                     return;
                 }
 
@@ -323,6 +333,16 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
                         evaluators.MoneyCellMapped.Add(request.ListMoneyCells[i]);
                         evaluators.TextCellMapped.Add(draftCells[i]);
                         Debug.WriteLine($"(ee2)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+                    }
+                    if (evaluators.ListMapEvaluators.Count == 0)
+                    {
+                        request.Result = null;
+                        request.SetHandled(false);
+                    }
+                    else if (evaluators.ListMapEvaluators.Count == request.ListMoneyCells.Count)
+                    {
+                        request.SetHandled(true);
+                        return;
                     }
                     return;
                 }

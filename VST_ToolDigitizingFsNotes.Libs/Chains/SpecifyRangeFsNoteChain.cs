@@ -6,7 +6,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Chains;
 
 public sealed class DetectRangeChainRequest : ChainBaseRequest<RangeDetectFsNote>
 {
-    public const int MaximumAllowRowRange = 80;
+    public const int MaximumAllowRowRange = 180;
     public MoneyCellModel MoneyCell { get; init; }
     public UnitOfWorkModel UnitOfWork { get; init; }
     public FsNoteParentModel Parent { get; init; }

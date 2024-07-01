@@ -15,6 +15,7 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <cvt:DoubleToStringConverter x:Key="DoubleToStringConverter"/>
         <cvt:ListDoubleToStringConverter x:Key="ListDoubleToStringConverter"/>
+        <cvt:NegativeValueToBooleanConverter x:Key="NegativeValueToBooleanConverter"/>
     </UserControl.Resources>
 
     <Grid>
@@ -33,10 +34,10 @@
                     <RowDefinition Height="Auto"></RowDefinition>
                     <RowDefinition Height="*"></RowDefinition>
                 </Grid.RowDefinitions>
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
-                    <Button Content="Import File" Margin="5" VerticalAlignment="Top" Width="80" Command="{Binding SelectFilesCommand}"/>
-                    <Button Content="Test" Margin="5" VerticalAlignment="Top" Width="80" Command="{Binding TestCommand}"/>
-                    <Button Content="Load workspace" Margin="5" VerticalAlignment="Top" Width="100" Command="{Binding LoadWorkspaceCommand}"/>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5 0">
+                    <Button Content="Import File" Margin="5" VerticalAlignment="Top" Padding="10 0" Cursor="Hand" Command="{Binding SelectFilesCommand}"/>
+                    <Button Content="Test" Margin="5" VerticalAlignment="Top" Padding="10 0" Cursor="Hand" Command="{Binding TestCommand}"/>
+                    <Button Content="Load workspace" Margin="5" VerticalAlignment="Top" Padding="10 0" Cursor="Hand" Command="{Binding LoadWorkspaceCommand}"/>
                 </StackPanel>
                 <GroupBox Header="Danh sách file import" Grid.Row="1" Margin="5">
                     <Grid>
@@ -122,8 +123,34 @@
                             </DataGrid.CellStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Id" Binding="{Binding Id}"></DataGridTextColumn>
-                                <DataGridTextColumn Header="Tên chỉ tiêu" Binding="{Binding Name}"></DataGridTextColumn>
-                                <DataGridTextColumn Header="Giá trị" Binding="{Binding TotalValue, Converter={StaticResource DoubleToStringConverter}}"></DataGridTextColumn>
+                                <DataGridTextColumn Header="Tên chỉ tiêu" Binding="{Binding Name}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding TotalValue, Converter={StaticResource NegativeValueToBooleanConverter}}" Value="-1">
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding TotalValue, Converter={StaticResource NegativeValueToBooleanConverter}}" Value="1">
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Giá trị" FontWeight="SemiBold" Binding="{Binding TotalValue, Converter={StaticResource DoubleToStringConverter}}">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding TotalValue, Converter={StaticResource NegativeValueToBooleanConverter}}" Value="-1">
+                                                    <Setter Property="Foreground" Value="Red"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding TotalValue, Converter={StaticResource NegativeValueToBooleanConverter}}" Value="1">
+                                                    <Setter Property="Foreground" Value="Green"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTextColumn Header="Cộng dồn" Binding="{Binding Values, Converter={StaticResource ListDoubleToStringConverter}}"></DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>

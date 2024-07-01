@@ -313,16 +313,20 @@ public partial class WorkspaceViewModel
         sheet.UowAbbyy14.FsNoteParentModels.Clear();
         sheet.UowAbbyy14.FsNoteParentModels.AddRange(sheet.RawDataImport.Select(x => x.DeepClone()));
         var startWatch = Stopwatch.StartNew();
+        var tasks = new List<Task>();
         var t1 = HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
-        //var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
+        tasks.Add(t1);
+        var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
+        tasks.Add(t2);
 
+        await Task.WhenAll(tasks);
         await t1;
-        //await t2;
+        await t2;
         startWatch.Stop();
 
         var dict = sheet.Data.Where(x => !x.IsParent).ToDictionary(x => x.Id, x => x);
 
-        foreach (var parent in sheet.UowAbbyy15.FsNoteParentModels)
+        foreach (var parent in sheet.UowAbbyy14.FsNoteParentModels)
         {
             foreach (var child in parent.Children)
             {

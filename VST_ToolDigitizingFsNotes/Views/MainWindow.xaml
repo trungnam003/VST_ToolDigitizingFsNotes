@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.Views"
         xmlns:vm="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.ViewModels"
         mc:Ignorable="d"
-        Title="Số hóa TM BCTC" Height="720" Width="1280" d:DataContext="{d:DesignInstance  Type=vm:MainViewModel}" Icon="/Views/vietstock.png">
+        Title="Số hóa TM BCTC - Vietstock" Height="720" Width="1280" d:DataContext="{d:DesignInstance  Type=vm:MainViewModel}" Icon="/Views/vietstock.png">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"></RowDefinition>

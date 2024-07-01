@@ -9,12 +9,14 @@ public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<Specif
     /// <summary>
     /// Số này phù hợp nhất, nếu lớn hơn thì xử lý rất lâu
     /// </summary>
-    public const int AllowListMoneyLength = 26;
+    public const int AllowListMoneyLength = 25;
     public UnitOfWorkModel UnitOfWork { get; init; }
     public FsNoteDataMap DataMap { get; init; }
 
-    public bool IgnoreNextSpecifyCol { get; set; }
-    public bool IgnoreNextSpecifyRow { get; set; }
+    //public bool IgnoreNextSpecifyCol { get; set; }
+    //public bool IgnoreNextSpecifyRow { get; set; }
+    public HashSet<int> IgnoreCols { get; set; } = [];
+    public HashSet<int> IgnoreRows { get; set; } = [];
 
     public SpecifyMoneyInRangeEqualWithParentRequest(UnitOfWorkModel unitOfWork, FsNoteDataMap dataMap)
     {
@@ -65,7 +67,12 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
 
                 var list = DetectUtils.FindAllSubsetSums(data, Math.Abs(parent!.Value), x => (x.Value),
                     SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
-                result.DataCols.AddRange(list);
+
+                if(list.Count > 0)
+                {
+                    request.IgnoreCols.Add(Target.Col);
+                    result.DataCols.AddRange(list);
+                }
             }
             catch (Exception ex)
             {
@@ -86,20 +93,24 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
                 }
                 var list = DetectUtils.FindAllSubsetSums(data, Math.Abs(parent!.Value), x => (x.Value),
                     SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
-                result.DataRows.AddRange(list);
+
+                if (list.Count > 0)
+                {
+                    request.IgnoreRows.Add(Target.Row);
+                    result.DataRows.AddRange(list);
+                }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine(request.DataMap.FsNoteParentModel.Name);
                 Debug.WriteLine(ex.Message);
             }
-
         }
         if (result.HasDataCols || result.HasDataRows)
         {
             request.Result = result;
-            request.IgnoreNextSpecifyCol = result.HasDataCols;
-            request.IgnoreNextSpecifyRow = result.HasDataRows;
+            //request.IgnoreNextSpecifyCol = result.HasDataCols;
+            //request.IgnoreNextSpecifyRow = result.HasDataRows;
             request.SetHandled(_nextChain == null);
             _nextChain?.Handle(request);
         }
@@ -126,9 +137,9 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
         var dataMap = request.DataMap;
         var parent = dataMap.FsNoteParentModel;
         /// group moneys theo dòng
-        var groupByRow = request.IgnoreNextSpecifyRow ? [] : MoneysInRange.GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
+        var groupByRow = MoneysInRange.Where(x => !request.IgnoreRows.Contains(x.Row)).GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
         /// group moneys theo cột
-        var groupByCol = request.IgnoreNextSpecifyCol ? [] : MoneysInRange.GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
+        var groupByCol = MoneysInRange.Where(x => !request.IgnoreRows.Contains(x.Col)).GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
         var result = request.Result ?? new SpecifyMoneyResult();
         // find all row
         using var cts = new CancellationTokenSource();
@@ -175,6 +186,5 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
         {
             _nextChain?.Handle(request);
         }
-
     }
 }
