@@ -9,7 +9,7 @@ public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<Specif
     /// <summary>
     /// Số này phù hợp nhất, nếu lớn hơn thì xử lý rất lâu
     /// </summary>
-    public const int AllowListMoneyLength = 25;
+    public const int AllowListMoneyLength = 23;
     public UnitOfWorkModel UnitOfWork { get; init; }
     public FsNoteDataMap DataMap { get; init; }
 
@@ -22,6 +22,26 @@ public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<Specif
     {
         UnitOfWork = unitOfWork;
         DataMap = dataMap;
+    }
+
+    public static bool IsContinuousListMoney(List<MoneyCellModel> lst, Func<MoneyCellModel, int> selector, double threshold = 0.8)
+    {
+        if(lst.Count == 0)
+        {
+            return false;
+        }
+        if(lst.Count == 1)
+        {
+            return true;
+        }
+        lst.Sort((x, y) => selector(x).CompareTo(selector(y)));
+        var lstDistances = new List<int>();
+        for(int i = 1; i< lst.Count; i++)
+        {
+            lstDistances.Add(selector(lst[i]) - selector(lst[i-1]));
+        }
+        var std = CoreUtils.CalculateStandardDeviation(lstDistances);
+        return std < threshold;
     }
 }
 
@@ -71,7 +91,15 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
                 if(list.Count > 0)
                 {
                     request.IgnoreCols.Add(Target.Col);
-                    result.DataCols.AddRange(list);
+                    foreach (var moneyCol in list)
+                    {
+                        var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyCol, x => x.Row);
+                        if (check)
+                        {
+                            result.DataCols.Add(moneyCol);
+                        }
+                    }
+                    
                 }
             }
             catch (Exception ex)
@@ -97,7 +125,15 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
                 if (list.Count > 0)
                 {
                     request.IgnoreRows.Add(Target.Row);
-                    result.DataRows.AddRange(list);
+                    foreach (var moneyRow in list)
+                    {
+                        var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyRow, x => x.Col);
+                        if (check)
+                        {
+                            result.DataRows.Add(moneyRow);
+                        }
+                    }
+
                 }
             }
             catch (Exception ex)
@@ -139,19 +175,37 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
         /// group moneys theo dòng
         var groupByRow = MoneysInRange.Where(x => !request.IgnoreRows.Contains(x.Row)).GroupBy(x => x.Row).ToDictionary(x => x.Key, x => x.ToList());
         /// group moneys theo cột
-        var groupByCol = MoneysInRange.Where(x => !request.IgnoreRows.Contains(x.Col)).GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
+        var groupByCol = MoneysInRange.Where(x => !request.IgnoreCols.Contains(x.Col)).GroupBy(x => x.Col).ToDictionary(x => x.Key, x => x.ToList());
         var result = request.Result ?? new SpecifyMoneyResult();
         // find all row
         using var cts = new CancellationTokenSource();
-        //cts.CancelAfter(3333);
         var ctsToken = cts.Token;
         foreach (var rowKeys in groupByRow.Keys)
         {
             try
             {
-                var moneyRows = DetectUtils.FindAllSubsetSums(groupByRow[rowKeys], Math.Abs(parent!.Value), x => (x.Value),
+                var moneysRow = groupByRow[rowKeys];
+                var data = moneysRow;
+                if (moneysRow.Count > SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength)
+                {
+                    // split list
+                    data = moneysRow.Take(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
+                }
+                var moneyRows = DetectUtils.FindAllSubsetSums(data, Math.Abs(parent!.Value), x => (x.Value),
                     SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
-                result.DataRows.AddRange(moneyRows);
+
+                if(moneyRows.Count > 0)
+                {
+                    foreach (var moneyRow in moneyRows)
+                    {
+                        var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyRow, x => x.Col);
+                        if (check)
+                        {
+                            result.DataRows.Add(moneyRow);
+                        }
+                    }
+                }    
+               
             }
             catch (Exception ex)
             {
@@ -165,9 +219,30 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
         {
             try
             {
-                var moneyCols = DetectUtils.FindAllSubsetSums(groupByCol[colKeys], Math.Abs(parent!.Value), x => (x.Value),
+                var moneysCol = groupByCol[colKeys];
+                var data = moneysCol;
+
+                if (moneysCol.Count > SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength)
+                {
+                    // split list
+                    data = moneysCol.Take(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
+                }
+
+                var moneyCols = DetectUtils.FindAllSubsetSums(data, Math.Abs(parent!.Value), x => (x.Value),
                     SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
-                result.DataCols.AddRange(moneyCols);
+
+                if (moneyCols.Count > 0)
+                {
+                    foreach (var moneyCol in moneyCols)
+                    {
+                        var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyCol, x => x.Row);
+                        if (check)
+                        {
+                            result.DataCols.Add(moneyCol);
+                        }
+                    }
+                }
+                
             }
             catch (Exception ex)
             {

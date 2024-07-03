@@ -109,7 +109,14 @@
                                   VirtualizingStackPanel.IsVirtualizing="True"
                                   VirtualizingStackPanel.VirtualizationMode="Recycling"
                                   EnableRowVirtualization="True"
+                                  FontSize="14"
+                                  CanUserSortColumns="False"
                                   EnableColumnVirtualization="True">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="{x:Type DataGridColumnHeader}">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
                             <DataGrid.CellStyle>
                                 <Style TargetType="DataGridCell">
                                     <Style.Triggers>

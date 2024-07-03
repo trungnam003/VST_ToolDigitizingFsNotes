@@ -6,7 +6,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Chains;
 
 public sealed class DetectRangeChainRequest : ChainBaseRequest<RangeDetectFsNote>
 {
-    public const int MaximumAllowRowRange = 180;
+    public const int MaximumAllowRowRange = 100;
     public MoneyCellModel MoneyCell { get; init; }
     public UnitOfWorkModel UnitOfWork { get; init; }
     public FsNoteParentModel Parent { get; init; }
@@ -241,6 +241,7 @@ public class DetectUsingSimilartyStringHanlder : HandleChainBase<DetectRangeChai
         var end = row;
         const int FIRST_COL = 0;
         var workbook = uow.OcrWorkbook;
+        const int threshold = 10;
         for (int i = end; i >= start; i--)
         {
             var cell = workbook?.GetSheetAt(0)?.GetRow(i)?.GetCell(FIRST_COL);
@@ -267,6 +268,10 @@ public class DetectUsingSimilartyStringHanlder : HandleChainBase<DetectRangeChai
 
             if (maxSimilarity >= StringSimilarityUtils.AcceptableSimilarity)
             {
+                if((results.Count > 0 && results.Peek().Row - i > threshold) || uow.CheckContainSpecifiedRanges(i, MapParentData.Id, out int _))
+                {
+                    continue;
+                }
                 results.Enqueue(new MatrixCellModel()
                 {
                     Row = i,

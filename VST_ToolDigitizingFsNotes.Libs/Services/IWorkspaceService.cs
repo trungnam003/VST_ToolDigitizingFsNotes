@@ -6,6 +6,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Services
     {
         string GenerateName();
         bool InitFolder(string workspaceName, out string pathOut);
-        Task<bool> SaveWorkspace(WorkspaceMetadata workspaceMetadata, WorkspaceModel model);  
+        Task<bool> SaveWorkspace(WorkspaceMetadata workspaceMetadata, WorkspaceModel model);
+        List<FsNoteParentModel> CombineDataUnitOfWorks(SheetFsNoteModel sheet);
     }
 }

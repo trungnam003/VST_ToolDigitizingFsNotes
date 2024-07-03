@@ -24,37 +24,6 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
         {
             return Math.Max(Math.Abs(x2 - x1), Math.Abs(y2 - y1));
         }
-        /// <summary>
-        /// Tìm số gần đúng nhất với số target trong list
-        /// </summary>
-        /// <typeparam name="T">Kiểu dữ liệu numeric</typeparam>
-        /// <param name="target"></param>
-        /// <param name="list"></param>
-        /// <param name="diff">Sự khác nhau tôi thiểu</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        //public static (T, bool) FindClosestNumber<T>(T target, List<T> list, T diff)
-        //    where T : IComparable<T>
-        //{
-        //    if (IsNumericType(typeof(T)) == false)
-        //        throw new ArgumentException("Type must be numeric type.");
-
-        //    T closestNumber = list[0];
-        //    bool isFound = false;
-        //    dynamic minDifference = Math.Abs(Convert.ToDouble(list[0]) - Convert.ToDouble(target));
-
-        //    foreach (var number in list)
-        //    {
-        //        dynamic difference = Math.Abs(Convert.ToDouble(number) - Convert.ToDouble(target));
-        //        if (difference < minDifference && difference <= diff)
-        //        {
-        //            minDifference = difference;
-        //            closestNumber = number;
-        //            isFound = true;
-        //        }
-        //    }
-        //    return (closestNumber, isFound);
-        //}
 
         public static (double, bool) FindClosestNumber(double target, List<double> list, double diff)
         {
@@ -128,6 +97,11 @@ namespace VST_ToolDigitizingFsNotes.Libs.Utils
         {
             double mean = numbers.Average();
             return numbers.Average(v => Math.Pow(v - mean, 2));
+        }
+
+        public static double CalculateStandardDeviation(List<int> numbers)
+        {
+            return Math.Sqrt(CalculateVariance(numbers));
         }
 
         /// <summary>

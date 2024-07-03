@@ -131,7 +131,6 @@ public partial class WorkspaceViewModel : ObservableObject
             {
                 workspaceMetadata.Name = Name;
             }
-            await Task.Delay(100);
             await HandleFileImportsAsync();
 
         }
@@ -221,7 +220,7 @@ public partial class WorkspaceViewModel
                 client.Dispose();
             }
             var totalPage = await _pdfService.GetPdfPageCountAsync(sheetMetadata.FilePdfFsPath);
-            var splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 30, totalPage);
+            var splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 10, totalPage);
             sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
         }
 
@@ -316,17 +315,20 @@ public partial class WorkspaceViewModel
         var tasks = new List<Task>();
         var t1 = HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
         tasks.Add(t1);
-        var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
-        tasks.Add(t2);
-
+        //var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
+        //tasks.Add(t2);
         await Task.WhenAll(tasks);
+
         await t1;
-        await t2;
+        //await t2;
+       
         startWatch.Stop();
 
         var dict = sheet.Data.Where(x => !x.IsParent).ToDictionary(x => x.Id, x => x);
 
-        foreach (var parent in sheet.UowAbbyy14.FsNoteParentModels)
+        var finalData = _workspaceService.CombineDataUnitOfWorks(sheet);
+
+        foreach (var parent in finalData)
         {
             foreach (var child in parent.Children)
             {

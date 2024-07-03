@@ -162,10 +162,9 @@ public class MappingService : IMappingService
                 rs = HandleMappingColumnDirection(uow, dataMap, range);
 
             }
-            else if (direction == Direction.Unknown
-                && input.Count == 1)
+            else if (direction == Direction.Unknown)
             {
-                var debug = 1;
+                rs = HandleMappingUnknownDirection(uow, dataMap, range);
             }
 
             if (rs != null)
@@ -329,6 +328,11 @@ public class MappingService : IMappingService
             }
         }
         return mapEvaluators;
+    }
+
+    private static MapEvaluators? HandleMappingUnknownDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
+    {
+        return null;
     }
 
     public void CombineUnitOfWorks(UnitOfWorkModel uow)

@@ -68,6 +68,21 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
             }
             return false;
         }
+
+        public bool CheckWrapSpecifiedRanges(int startRow, int endRow, int fsNoteId)
+        {
+            foreach (var item in SpecifiedRanges)
+            {
+                if ((startRow >= item.StartRow && startRow <= item.EndRow) ||
+                                       (endRow >= item.StartRow && endRow <= item.EndRow))
+                {
+                    if (item.FsNoteId == fsNoteId) continue;
+                    return true;
+                }
+            }
+            return false;
+            
+        }
     }
 
     public sealed class SpecifiedRange
