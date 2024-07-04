@@ -238,6 +238,7 @@ public partial class DetectService
         {
             Debug.WriteLine("============================ Bắt đầu ==============================");
             Debug.WriteLine($"Xử lý chỉ tiêu: {parent.Name}");
+
             var parentValue = (parent.Value);
             List<MoneyCellModel> listMoneysEqualParentValue = uow.MoneyCellModels
                .Where(money => Math.Abs(money.Value) == Math.Abs(parent.Value))

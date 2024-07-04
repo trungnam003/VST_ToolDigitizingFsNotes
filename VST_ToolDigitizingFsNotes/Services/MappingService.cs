@@ -314,7 +314,7 @@ public class MappingService : IMappingService
             moneyClones.Sort(MoneyCellModel.MoneyCellModelComparer);
 
             var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels!, moneyClones);
-            var handler1 = new MapInRowHandler();
+            var handler1 = new MapInRowHandler(uow);
             var handler2 = new MapWhenOcrLineBreakErrorHandler(uow, range, dataMap);
             handler1.SetNext(handler2);
             handler1.Handle(request);
@@ -332,6 +332,29 @@ public class MappingService : IMappingService
 
     private static MapEvaluators? HandleMappingUnknownDirection(UnitOfWorkModel uow, FsNoteDataMap dataMap, RangeDetectFsNote range)
     {
+        if (range.MoneyResults == null || range.ListTextCellSuggestModels == null || range.ListTextCellSuggestModels.Count == 0)
+        {
+            return null;
+        }
+
+        var row = range.ListTextCellSuggestModels[0].Row;
+        List<MoneyCellModel>? moneys = range.MoneyResults.DataRows.Find(x => x.Count > 0 && x[0].Row == row);
+        if (moneys == null)
+        {
+            return null;
+        }
+        moneys.Sort(MoneyCellModel.MoneyCellModelComparer);
+
+        var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels, moneys);
+
+        var handler1 = new MapSingleCellHandler();
+
+        handler1.Handle(request);
+
+        if (request.Handled && request.Result != null)
+        {
+            return request.Result;
+        }
         return null;
     }
 

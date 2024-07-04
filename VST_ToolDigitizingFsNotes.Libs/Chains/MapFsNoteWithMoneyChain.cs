@@ -52,6 +52,11 @@ public class MapEvaluators
 /// </summary>
 public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
 {
+    public UnitOfWorkModel Uow { get; init; }
+    public MapInRowHandler(UnitOfWorkModel uow)
+    {
+        Uow = uow;
+    }
     public override void Handle(MapFsNoteWithMoneyChainRequest request)
     {
         if (request.Handled)
@@ -150,9 +155,24 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
             }
             else
             {
+                var sheet = Uow.GetOcrSheet() ?? throw new ArgumentNullException();
+                var cols = request.ListTextCellSuggests.Select(x => x.Col).ToList();
+                var mostFreqCol = MapWhenOcrLineBreakErrorHandler.GetMostFreq(cols);    
                 var moneyNotMapped = request.ListMoneyCells.Except(evaluators.MoneyCellMapped).ToList();
                 foreach (var money in moneyNotMapped)
                 {
+                    var cell = sheet.GetRow(money.Row)?.GetCell(mostFreqCol);
+                    if(cell != null)
+                    {
+                        var cellValue = cell.ToString()??"";
+                        StringUtils.RemoveAllInParentheses(cellValue);
+                        cellValue = cellValue.ToSimilarityCompareString();
+                        if(!string.IsNullOrWhiteSpace(cellValue))
+                        {
+                            continue;
+                        }
+                    }
+
                     var textNotMapped = request.ListTextCellSuggests.Except(evaluators.TextCellMapped).ToList();
                     var minDistance = double.MaxValue;
                     TextCellSuggestModel? textCellMinDistance = null;
@@ -501,7 +521,7 @@ public class MapWhenOcrLineBreakErrorHandler : HandleChainBase<MapFsNoteWithMone
         return newList;
     }
 
-    private static int GetMostFreq(List<int> list)
+    public static int GetMostFreq(List<int> list)
     {
         var elementCounts = new Dictionary<int, int>();
 
@@ -578,6 +598,57 @@ public class MapInColHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
                 //request.SetHandled(true);
                 return;
             }
+        }
+    }
+}
+#endregion
+
+
+#region Các chỉ tiêu bị gộp
+public class MapSingleCellHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
+{
+    public override void Handle(MapFsNoteWithMoneyChainRequest request)
+    {
+        var result = new MapEvaluators();
+        var textCells = request.ListTextCellSuggests;
+
+        if(textCells.Count == 1)
+        {
+            result.RemainMoneys = request.ListMoneyCells;
+            request.Result = result;
+            request.SetHandled(true);
+            return;
+        }
+
+        textCells.Sort(TextCellSuggestModel.Comparer);
+        var moneyCell = request.ListMoneyCells;
+        var lenTextLtF = textCells.Last().IndexInCell - textCells.First().IndexInCell + 1;
+        if(lenTextLtF == moneyCell.Count)
+        {
+            var realIndex = 0 - textCells.First().IndexInCell;
+            for (int i = 0; i < textCells.Count; i++)
+            {
+                var textCell = textCells.Find(x => x.IndexInCell - realIndex == i);
+                if(textCell == null)
+                {
+                    continue;
+                }
+                var evaluator = new MapEvaluator(textCell, moneyCell[i])
+                {
+                    MapEvaluatorType = MapEvaluatorType.MappedInRow,
+                };
+                result.ListMapEvaluators.Add(evaluator);
+                result.MoneyCellMapped.Add(moneyCell[i]);
+                result.TextCellMapped.Add(textCell);
+                Debug.WriteLine($"(e1)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+            }
+            request.Result = result;
+            request.SetHandled(true);
+        }
+        else
+        {
+            request.Result = null;
+            _nextChain?.Handle(request);
         }
     }
 }

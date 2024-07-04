@@ -110,11 +110,11 @@ public partial class WorkspaceViewModel : ObservableObject
     {
         try
         {
-            var result = MessageBox.Show("Bạn có chắc chắn muốn thực hiện tác vụ này?", "Xác nhận", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result == MessageBoxResult.No)
-            {
-                return;
-            }
+            //var result = MessageBox.Show("Bạn có chắc chắn muốn thực hiện tác vụ này?", "Xác nhận", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            //if (result == MessageBoxResult.No)
+            //{
+            //    return;
+            //}
             _homeViewModel.IsLoading = true;
             await _mappingService.LoadMapping2();
             if (WorkspaceInitStatus == WorkspaceInitStatus.CreateNew)
@@ -313,15 +313,15 @@ public partial class WorkspaceViewModel
         sheet.UowAbbyy14.FsNoteParentModels.AddRange(sheet.RawDataImport.Select(x => x.DeepClone()));
         var startWatch = Stopwatch.StartNew();
         var tasks = new List<Task>();
-        var t1 = HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15);
+        var t1 = HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15, "V15");
         tasks.Add(t1);
-        //var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14);
-        //tasks.Add(t2);
+        var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14, "V14");
+        tasks.Add(t2);
         await Task.WhenAll(tasks);
 
         await t1;
-        //await t2;
-       
+        await t2;
+
         startWatch.Stop();
 
         var dict = sheet.Data.Where(x => !x.IsParent).ToDictionary(x => x.Id, x => x);
@@ -344,9 +344,9 @@ public partial class WorkspaceViewModel
 
     }
 
-    public async Task HandleSingleAsync(string ocrPath, UnitOfWorkModel uow)
+    public async Task HandleSingleAsync(string ocrPath, UnitOfWorkModel uow, string v)
     {
-
+        Debug.WriteLine($"{v}");
         await using var fsOcr = new FileStream(ocrPath, FileMode.Open, FileAccess.Read);
         var workbookOcr = await Task.Run(() => new XSSFWorkbook(fsOcr));
         uow.OcrWorkbook = workbookOcr;
@@ -356,8 +356,8 @@ public partial class WorkspaceViewModel
         }
         var reqDetectData = new DetectDataRequest(ref uow);
         var taskDetectData = await _mediator.Send(reqDetectData);
-        _detectService.StartDetectFsNotesAsync(uow);
-
+        await Task.Run(() => _detectService.StartDetectFsNotesAsync(uow));
+        Debug.WriteLine($"Done {v}");
     }
     #endregion
 }
