@@ -185,12 +185,12 @@ public class MappingService : IMappingService
                             dataMap.Result[dataMap.OtherFsNoteId].Value += value;
                             dataMap.Result[dataMap.OtherFsNoteId].Values.Add(value);
                         }
-                        else if (value < 0)
+                        else if (value < 0 && dataMap.HasNegOtherFsNoteId)
                         {
                             dataMap.Result[dataMap.NegOtherFsNoteId].Value += value;
                             dataMap.Result[dataMap.NegOtherFsNoteId].Values.Add(value);
                         }
-                        else if (value > 0)
+                        else if (value > 0 && dataMap.HasPosOtherFsNoteId)
                         {
                             dataMap.Result[dataMap.PosOtherFsNoteId].Value += value;
                             dataMap.Result[dataMap.PosOtherFsNoteId].Values.Add(value);
@@ -210,12 +210,12 @@ public class MappingService : IMappingService
                             dataMap.Result[dataMap.OtherFsNoteId].Value += remainValue;
                             dataMap.Result[dataMap.OtherFsNoteId].Values.Add(remainValue);
                         }
-                        else if (remainValue < 0)
+                        else if (remainValue < 0 && dataMap.HasNegOtherFsNoteId)
                         {
                             dataMap.Result[dataMap.NegOtherFsNoteId].Value += remainValue;
                             dataMap.Result[dataMap.NegOtherFsNoteId].Values.Add(remainValue);
                         }
-                        else if (remainValue > 0)
+                        else if (remainValue > 0 && dataMap.HasPosOtherFsNoteId)
                         {
                             dataMap.Result[dataMap.PosOtherFsNoteId].Value += remainValue;
                             dataMap.Result[dataMap.PosOtherFsNoteId].Values.Add(remainValue);

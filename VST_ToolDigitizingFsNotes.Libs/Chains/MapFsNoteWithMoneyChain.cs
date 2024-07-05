@@ -628,7 +628,7 @@ public class MapSingleCellHandler : HandleChainBase<MapFsNoteWithMoneyChainReque
             var realIndex = 0 - textCells.First().IndexInCell;
             for (int i = 0; i < textCells.Count; i++)
             {
-                var textCell = textCells.Find(x => x.IndexInCell - realIndex == i);
+                var textCell = textCells.Find(x => x.IndexInCell + realIndex == i);
                 if(textCell == null)
                 {
                     continue;
@@ -640,7 +640,7 @@ public class MapSingleCellHandler : HandleChainBase<MapFsNoteWithMoneyChainReque
                 result.ListMapEvaluators.Add(evaluator);
                 result.MoneyCellMapped.Add(moneyCell[i]);
                 result.TextCellMapped.Add(textCell);
-                Debug.WriteLine($"(e1)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
+                Debug.WriteLine($"(single)>> {evaluator.textCellSuggest.CellValue} - {evaluator.moneyCell.Value}");
             }
             request.Result = result;
             request.SetHandled(true);

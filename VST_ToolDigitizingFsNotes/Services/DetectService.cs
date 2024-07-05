@@ -253,6 +253,7 @@ public partial class DetectService
             };
 
             HandleDetectFsNoteParentAsync(uow, parent, fsNoteDataMap, listMoneysEqualParentValue);
+
             _mappingService.MapFsNoteWithMoney(uow, fsNoteDataMap);
             Debug.WriteLine("============================ Kết thúc ============================\n");
 
@@ -586,7 +587,7 @@ public partial class DetectService
         if (mergeCells == null)
             return null;
         var results = new List<TextCellSuggestModel>();
-        
+
         foreach (var mergeCell in mergeCells)
         {
             // check merge cell value at least 1 space

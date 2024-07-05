@@ -13,11 +13,11 @@
             <RowDefinition Height="*"></RowDefinition>
         </Grid.RowDefinitions>
 
-        <Menu Grid.Row="0" Padding="0 2">
+        <Menu Grid.Row="0" Padding="0 2" Background="#e0e0e0" BorderBrush="#9e9e9e" BorderThickness="0 0 0 1">
             <MenuItem Padding="12 0" Header="View">
-                <MenuItem Header="Trang chính" Command="{Binding Path=NavigateToHomeCommand}"></MenuItem>
-                <MenuItem Header="Cài đặt" Command="{Binding Path=NavigateToSettingsCommand}"></MenuItem>
-                <MenuItem Header="Chạy thử" Command="{Binding Path=NavigateToTestCommand}"></MenuItem>
+                <MenuItem Padding="5 0" Header="Trang chính" Command="{Binding Path=NavigateToHomeCommand}"></MenuItem>
+                <MenuItem Padding="5 0" Header="Cài đặt" Command="{Binding Path=NavigateToSettingsCommand}"></MenuItem>
+                <MenuItem Padding="5 0" Header="Chạy thử" Command="{Binding Path=NavigateToTestCommand}"></MenuItem>
             </MenuItem>
         </Menu>
 

@@ -8,7 +8,8 @@
              xmlns:cvt="clr-namespace:VST_ToolDigitizingFsNotes.AppMain.Converters"
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              mc:Ignorable="d" 
-             Background="WhiteSmoke"
+             Background="#eeeeee"
+             Foreground="#212121"
              d:DesignHeight="720" d:DesignWidth="1280"  d:DataContext="{d:DesignInstance Type=vm:HomeViewModel }">
 
     <UserControl.Resources>
@@ -16,6 +17,41 @@
         <cvt:DoubleToStringConverter x:Key="DoubleToStringConverter"/>
         <cvt:ListDoubleToStringConverter x:Key="ListDoubleToStringConverter"/>
         <cvt:NegativeValueToBooleanConverter x:Key="NegativeValueToBooleanConverter"/>
+        <Style x:Key="CommonButtonStyle" TargetType="Button">
+            <Setter Property="Margin" Value="5 0"/>
+            <Setter Property="Padding" Value="10 2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="#bdbdbd"/>
+            <Setter Property="Foreground" Value="#212121"/>
+            <Setter Property="BorderBrush" Value="#757575"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="2"
+                                    Padding="{TemplateBinding Padding}"
+                                    Margin="{TemplateBinding Margin}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#9e9e9e"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#616161"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#9e9e9e"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#616161"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -34,13 +70,13 @@
                     <RowDefinition Height="Auto"></RowDefinition>
                     <RowDefinition Height="*"></RowDefinition>
                 </Grid.RowDefinitions>
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5 0">
-                    <Button Content="Import File" Margin="5" VerticalAlignment="Top" Padding="10 0" Cursor="Hand" Command="{Binding SelectFilesCommand}"/>
-                    <Button Content="Test" Margin="5" VerticalAlignment="Top" Padding="10 0" Cursor="Hand" Command="{Binding TestCommand}"/>
-                    <Button Content="Load workspace" Margin="5" VerticalAlignment="Top" Padding="10 0" Cursor="Hand" Command="{Binding LoadWorkspaceCommand}"/>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
+                    <Button Style="{StaticResource CommonButtonStyle}" Content="Import File"  VerticalAlignment="Center" Command="{Binding SelectFilesCommand}"/>
+                    <Button Style="{StaticResource CommonButtonStyle}" Content="Test" VerticalAlignment="Center" Command="{Binding TestCommand}"/>
+                    <Button Style="{StaticResource CommonButtonStyle}" Content="Load workspace"  VerticalAlignment="Center" Command="{Binding LoadWorkspaceCommand}"/>
                 </StackPanel>
                 <GroupBox Header="Danh sách file import" Grid.Row="1" Margin="5">
-                    <Grid>
+                    <Grid Margin="5">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"></RowDefinition>
                             <RowDefinition Height="*"></RowDefinition>
@@ -49,14 +85,18 @@
                             <Label Content="+ Số lượng file: ">
                             </Label>
                             <Label Content="{Binding WorkspaceViewModel.FileImportFsNoteModels.Count}"></Label>
-                            <Button Content="Chạy số hóa" VerticalAlignment="Center" Margin="15 0"  Padding="10 0" Cursor="Hand" IsEnabled="{Binding IsNoBlock}" Command="{Binding WorkspaceViewModel.StartCommand}"/>
+                            <Button  Style="{StaticResource ResourceKey=CommonButtonStyle}" Content="Chạy số hóa" VerticalAlignment="Center" IsEnabled="{Binding IsNoBlock}" Command="{Binding WorkspaceViewModel.StartCommand}"/>
                             <Label Content="{Binding WorkspaceViewModel.Name}"></Label>
-                            <Button Content="Xuất" VerticalAlignment="Center" Margin="15 0" Padding="10 0" Cursor="Hand" IsEnabled="{Binding IsNoBlock}"/>
+                            <Button Style="{StaticResource CommonButtonStyle}" Content="Xuất" VerticalAlignment="Center" IsEnabled="{Binding IsNoBlock}" Command="{Binding WorkspaceViewModel.ExportDataToFileCommand}"/>
                         </StackPanel>
                         <DataGrid x:Name="dgDataImport" ItemsSource="{Binding WorkspaceViewModel.FileImportFsNoteModels}" SelectedItem="{Binding WorkspaceViewModel.SelectedFileImport}"
                                   Grid.Row="1" AutoGenerateColumns="False" 
                                   IsReadOnly="True" SelectionMode="Single" 
                                   CanUserSortColumns="False"
+                                  Foreground="#212121"
+                                  HorizontalGridLinesBrush="#212121"
+                                  VerticalGridLinesBrush="#212121"
+                                  Background="#e0e0e0"
                                   Margin="0 5 0 0" IsEnabled="{Binding IsNoBlock}">
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="{x:Type DataGridColumnHeader}">
@@ -78,7 +118,7 @@
                 </GroupBox>
 
             </Grid>
-            <GridSplitter Grid.Column="1" Width="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+            <GridSplitter BorderBrush="#9e9e9e" BorderThickness="1 0 1 0" Background="#e0e0e0" Grid.Column="1" Width="3" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
             <Grid Grid.Column="2">
                 <Grid Margin="5">
                     <Grid.RowDefinitions>
@@ -111,7 +151,12 @@
                                   EnableRowVirtualization="True"
                                   FontSize="14"
                                   CanUserSortColumns="False"
+                                  Foreground="#212121"
+                                  HorizontalGridLinesBrush="#212121"
+                                  VerticalGridLinesBrush="#212121"
+                                  Background="#e0e0e0"
                                   EnableColumnVirtualization="True">
+                                
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="{x:Type DataGridColumnHeader}">
                                     <Setter Property="FontWeight" Value="SemiBold"/>
@@ -177,18 +222,18 @@
                 </GroupBox>-->
             </Grid>
         </Grid>
-        <StatusBar Grid.Row="1" Height="30" VerticalAlignment="Center">
+        <StatusBar BorderBrush="#9e9e9e" BorderThickness="0 1 0 0" Grid.Row="1" Height="30" VerticalAlignment="Center" Background="#e0e0e0">
             <StatusBarItem>
-                <Grid>
+                <Grid >
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"></ColumnDefinition>
                         <ColumnDefinition Width="*"></ColumnDefinition>
                         <ColumnDefinition Width="Auto"></ColumnDefinition>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Đang xử lý:" Margin="3" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                    <ProgressBar Grid.Column="1" x:Name="ProgressBar" Margin="5 0" Width="333" Height="16" IsIndeterminate="{Binding IsLoading}" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Foreground="#0d47a1" Grid.Column="0" Text="Đang xử lý:" Margin="3" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <ProgressBar Foreground="#1565c0" Background="#eeeeee" Grid.Column="1" x:Name="ProgressBar" Margin="5 0" Width="333" Height="16" IsIndeterminate="{Binding IsLoading}" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
                     </ProgressBar>
-                    <TextBlock Grid.Column="2" Text="{Binding Status}" Margin="3" Foreground="Blue"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Status}" Margin="3" Foreground="#0d47a1"/>
                 </Grid>
             </StatusBarItem>
         </StatusBar>

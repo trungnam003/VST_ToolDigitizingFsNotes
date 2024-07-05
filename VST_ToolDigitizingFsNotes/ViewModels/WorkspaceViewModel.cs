@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using VST_ToolDigitizingFsNotes.AppMain.Services;
 using VST_ToolDigitizingFsNotes.Libs.Common;
 using VST_ToolDigitizingFsNotes.Libs.Handlers;
 using VST_ToolDigitizingFsNotes.Libs.Models;
@@ -144,6 +145,14 @@ public partial class WorkspaceViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task ExportDataToFileAsync()
+    {
+        await Task.Delay(1000);
+        // show dialog to test
+        MessageBox.Show("Export data to file");
+    }
+
 }
 
 
@@ -220,22 +229,30 @@ public partial class WorkspaceViewModel
                 client.Dispose();
             }
             var totalPage = await _pdfService.GetPdfPageCountAsync(sheetMetadata.FilePdfFsPath);
-            var splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 10, totalPage);
+            var splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 30, totalPage);
             sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
         }
 
         var tasks = new List<Task>();
-        /// ABBYY 11
-        //var abbyy11String = new AbbyyCmdString.Builder()
-        //    .SetAbbyyPath(_userSettings.Abbyy11Path!)
-        //    .SetInputPath(sheetMetadata.FilePdfFsPath)
-        //    .SetOutputPath(sheetMetadata.FileOcrV11Path)
-        //    .SetQuitOnDone(true)
-        //    .UseVietnameseLanguge()
-        //    .Build();
-        //var p11 = new AbbyyCmdManager(abbyy11String).StartAbbyyProcess();
-        //var t11 = p11.WaitForExitAsync();
-        //tasks.Add(t11);
+
+        if (File.Exists(sheetMetadata.FileOcrV11Path))
+        {
+            sheetMetadata.IsFileOcrV11Created = true;
+        }
+        else
+        {
+            /// ABBYY 11
+            var abbyy11String = new AbbyyCmdString.Builder()
+                .SetAbbyyPath(_userSettings.Abbyy11Path!)
+                .SetInputPath(sheetMetadata.FilePdfFsPath)
+                .SetOutputPath(sheetMetadata.FileOcrV11Path)
+                .SetQuitOnDone(true)
+                .UseVietnameseLanguge()
+                .Build();
+            var p11 = new AbbyyCmdManager(abbyy11String).StartAbbyyProcess();
+            var t11 = p11.WaitForExitAsync();
+            tasks.Add(t11);
+        }
 
         if (File.Exists(sheetMetadata.FileOcrV14Path))
         {
@@ -277,9 +294,10 @@ public partial class WorkspaceViewModel
 
         if (tasks.Count > 0)
         {
+            tasks.Add(InspectAllAbbyySuccess(sheet));
             _homeViewModel.Status = $"Đang OCR file {fileName} (11)(14)(15)";
             await Task.WhenAll(tasks);
-            //sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV14Path);
+            sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV11Path);
             sheetMetadata.IsFileOcrV14Created = File.Exists(sheetMetadata.FileOcrV14Path);
             sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
         }
@@ -287,6 +305,47 @@ public partial class WorkspaceViewModel
 
         sheet.UowAbbyy14?.Dispose();
         sheet.UowAbbyy15?.Dispose();
+    }
+
+    public static async Task InspectAllAbbyySuccess(SheetFsNoteModel sheet, CancellationToken cancellation = default)
+    {
+        // exit if cancel
+        try
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (sheet.Meta == null)
+            {
+                throw new Exception("Sheet metadata is null");
+            }
+            var sheetMetadata = sheet.Meta;
+            // check all file ocr is created and sleep 2s
+            //await Task.Delay(TimeSpan.FromMinutes(3), cancellation);
+
+            while (true)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var is11Success = File.Exists(sheetMetadata.FileOcrV11Path);
+                var is14Success = File.Exists(sheetMetadata.FileOcrV14Path);
+                var is15Success = File.Exists(sheetMetadata.FileOcrV15Path);
+                var message = $"11-{is11Success}; 14{is14Success}; 15{is15Success}";
+                Debug.WriteLine(message);
+                if (is11Success && is14Success && is15Success)
+                {
+                    Debug.WriteLine("Cút");
+
+                    new AbbyyService().ExitAllAbbyy();
+                    break;
+                }
+                Debug.WriteLine("Chưa nữa nè");
+                await Task.Delay(3000, cancellation);
+            }
+        }
+        catch (Exception)
+        {
+            Debug.WriteLine("Lỗi");
+            return;
+        }
+
     }
 
     public async Task HandleMultiTaskAsync(SheetFsNoteModel sheet)
@@ -315,12 +374,12 @@ public partial class WorkspaceViewModel
         var tasks = new List<Task>();
         var t1 = HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15, "V15");
         tasks.Add(t1);
-        var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14, "V14");
-        tasks.Add(t2);
+        //var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14, "V14");
+        //tasks.Add(t2);
         await Task.WhenAll(tasks);
 
         await t1;
-        await t2;
+        //await t2;
 
         startWatch.Stop();
 

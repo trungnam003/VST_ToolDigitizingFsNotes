@@ -9,7 +9,7 @@ public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<Specif
     /// <summary>
     /// Số này phù hợp nhất, nếu lớn hơn thì xử lý rất lâu
     /// </summary>
-    public const int AllowListMoneyLength = 23;
+    public const int AllowListMoneyLength = 24;
     public UnitOfWorkModel UnitOfWork { get; init; }
     public FsNoteDataMap DataMap { get; init; }
 
@@ -128,12 +128,11 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
                     foreach (var moneyRow in list)
                     {
                         var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyRow, x => x.Col);
-                        if (check)
+                        if (check )
                         {
                             result.DataRows.Add(moneyRow);
                         }
                     }
-
                 }
             }
             catch (Exception ex)
