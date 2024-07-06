@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System.IO;
+using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Common;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
@@ -53,22 +54,41 @@ public class WorkspaceService : IWorkspaceService
 
     public List<FsNoteParentModel> CombineDataUnitOfWorks(SheetFsNoteModel sheet)
     {
-        if (sheet.UowAbbyy14 == null && sheet.UowAbbyy15 == null)
-            throw new ArgumentException("Both UowAbbyy14 and UowAbbyy15 are null");
-        var listHandle = new List<List<FsNoteParentModel>>();
+        var type = sheet.GetType();
+        var allUow = sheet.AllAbbyyUow.ToList();
 
-        if (sheet.UowAbbyy14 != null)
-        {
-            listHandle.Add(sheet.UowAbbyy14.FsNoteParentModels);
-        }
+        if (allUow.Count == 0)
+            throw new ArgumentException("All UowAbbyy is null");
 
-        if (sheet.UowAbbyy15 != null)
-        {
-            listHandle.Add(sheet.UowAbbyy15.FsNoteParentModels);
-        }
+        var listHandle = allUow.Select(x => x!.FsNoteParentModels).ToList();
+
+        if (listHandle == null || listHandle.Count == 0)
+            throw new ArgumentException("All UowAbbyy.FsNoteParentModels is null");
 
         var results = HandleCombineData(listHandle);
+
         return results;
+        //if (sheet.UowAbbyy14 == null && sheet.UowAbbyy15 == null && sheet.UowAbbyy11 == null)
+        //    throw new ArgumentException("Both UowAbbyy14 and UowAbbyy15 are null");
+        //var listHandle = new List<List<FsNoteParentModel>>();
+
+        //if (sheet.UowAbbyy14 != null)
+        //{
+        //    listHandle.Add(sheet.UowAbbyy14.FsNoteParentModels);
+        //}
+
+        //if (sheet.UowAbbyy15 != null)
+        //{
+        //    listHandle.Add(sheet.UowAbbyy15.FsNoteParentModels);
+        //}
+
+        //if (sheet.UowAbbyy11 != null)
+        //{
+        //    listHandle.Add(sheet.UowAbbyy11.FsNoteParentModels);
+        //}
+
+        //var results = HandleCombineData(listHandle);
+        //return results;
     }
 
     private static List<FsNoteParentModel> HandleCombineData(List<List<FsNoteParentModel>> listData)
@@ -105,4 +125,5 @@ public class WorkspaceService : IWorkspaceService
 
         return results;
     }
+    
 }

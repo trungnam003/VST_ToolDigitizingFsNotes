@@ -24,6 +24,7 @@ public enum WorkspaceInitStatus
 
 public partial class WorkspaceViewModel : ObservableObject
 {
+    private const int SecondPerPageDelay = 3;
     private readonly IServiceProvider _serviceProvider;
     private readonly IWorkspaceService _workspaceService;
     private readonly HomeViewModel _homeViewModel;
@@ -179,7 +180,10 @@ public partial class WorkspaceViewModel
             foreach (var key in file.FsNoteSheets)
             {
                 if (!string.IsNullOrEmpty(key.Value.ErrorMessage))
+                {
                     continue;
+                }
+
                 try
                 {
                     _homeViewModel.Status = $"Đang xử lý sheet {key.Key} trong file {file.Name}";
@@ -188,7 +192,6 @@ public partial class WorkspaceViewModel
                 catch (Exception ex)
                 {
                     _homeViewModel.Status = $"Lỗi xử lý sheet {key.Key} trong file {file.Name}";
-                    await Task.Delay(200);
                     Debug.WriteLine(ex.Message);
                     continue;
                 }
@@ -208,7 +211,7 @@ public partial class WorkspaceViewModel
             FileOcrV14Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V14.xlsx"),
             FileOcrV15Path = Path.Combine(workspaceMetadata.OcrPath, Path.GetFileNameWithoutExtension(fileName) + "_V15.xlsx"),
         };
-
+        int remainPage = 0;
         if (File.Exists(sheetMetadata.FilePdfFsPath))
         {
             sheetMetadata.IsDownloaded = true;
@@ -229,8 +232,14 @@ public partial class WorkspaceViewModel
                 client.Dispose();
             }
             var totalPage = await _pdfService.GetPdfPageCountAsync(sheetMetadata.FilePdfFsPath);
-            var splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 30, totalPage);
-            sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
+            bool splitResult = false;
+            if(totalPage > 30)
+            {
+                splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 30, totalPage);
+                sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
+                remainPage = totalPage - 30;
+            }
+            sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath);
         }
 
         var tasks = new List<Task>();
@@ -294,17 +303,24 @@ public partial class WorkspaceViewModel
 
         if (tasks.Count > 0)
         {
-            tasks.Add(InspectAllAbbyySuccess(sheet));
+            var tokenTimeout = TimeSpan.FromSeconds(remainPage * SecondPerPageDelay) + TimeSpan.FromMinutes(3);
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(tokenTimeout);
+            tasks.Add(InspectAllAbbyySuccess(sheet, cts.Token));
+
             _homeViewModel.Status = $"Đang OCR file {fileName} (11)(14)(15)";
             await Task.WhenAll(tasks);
+
             sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV11Path);
             sheetMetadata.IsFileOcrV14Created = File.Exists(sheetMetadata.FileOcrV14Path);
             sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
         }
         await HandleMultiTaskAsync(sheet);
 
-        sheet.UowAbbyy14?.Dispose();
-        sheet.UowAbbyy15?.Dispose();
+        // Dispose tất cả UowAbbyy
+        sheet.AllAbbyyUow.ToList().ForEach(x => x?.Dispose());
+
+        _homeViewModel.Status = $"Hoàn tất {fileName}";
     }
 
     public static async Task InspectAllAbbyySuccess(SheetFsNoteModel sheet, CancellationToken cancellation = default)
@@ -318,7 +334,7 @@ public partial class WorkspaceViewModel
                 throw new Exception("Sheet metadata is null");
             }
             var sheetMetadata = sheet.Meta;
-            // check all file ocr is created and sleep 2s
+
             //await Task.Delay(TimeSpan.FromMinutes(3), cancellation);
 
             while (true)
@@ -340,51 +356,53 @@ public partial class WorkspaceViewModel
                 await Task.Delay(3000, cancellation);
             }
         }
+        catch (OperationCanceledException)
+        {
+            Debug.WriteLine("Task bị hủy do hết hạn");
+            throw;
+        }
         catch (Exception)
         {
-            Debug.WriteLine("Lỗi");
-            return;
+            Debug.WriteLine("Có lỗi xảy ra khi kiểm tra tất cả các tiến trình ABBYY");
+            throw;
         }
 
     }
 
     public async Task HandleMultiTaskAsync(SheetFsNoteModel sheet)
     {
-        var metadata = sheet.Meta;
-        if (metadata == null)
-        {
-            throw new Exception("Sheet metadata is null");
-        }
-        if (!metadata.IsFileOcrV15Created || metadata.FileOcrV15Path == null)
-        {
-            throw new Exception("File Ocr V15 is not created");
-        }
-        if (!metadata.IsFileOcrV14Created || metadata.FileOcrV14Path == null)
-        {
-            throw new Exception("File Ocr V15 is not created");
-        }
-        sheet.UowAbbyy15 = new UnitOfWorkModel();
-        sheet.UowAbbyy15.FsNoteParentModels.Clear();
-        sheet.UowAbbyy15.FsNoteParentModels.AddRange(sheet.RawDataImport.Select(x => x.DeepClone()));
+        var metadata = sheet.Meta ?? throw new Exception("Sheet metadata is null");
 
-        sheet.UowAbbyy14 = new UnitOfWorkModel();
-        sheet.UowAbbyy14.FsNoteParentModels.Clear();
-        sheet.UowAbbyy14.FsNoteParentModels.AddRange(sheet.RawDataImport.Select(x => x.DeepClone()));
-        var startWatch = Stopwatch.StartNew();
+        var versions = new[]
+        {
+            new { IsCreated = metadata.IsFileOcrV15Created, Path = metadata.FileOcrV15Path, PropertyName = nameof(sheet.UowAbbyy15), Version = "V15" },
+            new { IsCreated = metadata.IsFileOcrV14Created, Path = metadata.FileOcrV14Path, PropertyName = nameof(sheet.UowAbbyy14), Version = "V14" },
+            new { IsCreated = metadata.IsFileOcrV11Created, Path = metadata.FileOcrV11Path, PropertyName = nameof(sheet.UowAbbyy11), Version = "V11" }
+        };
         var tasks = new List<Task>();
-        var t1 = HandleSingleAsync(metadata.FileOcrV15Path, sheet.UowAbbyy15, "V15");
-        tasks.Add(t1);
-        //var t2 = HandleSingleAsync(metadata.FileOcrV14Path, sheet.UowAbbyy14, "V14");
-        //tasks.Add(t2);
+        foreach (var version in versions)
+        {
+            if (!version.IsCreated || version.Path == null)
+            {
+                throw new Exception($"File Ocr {version.Version} is not created");
+            }
+
+            var property = sheet.GetType().GetProperty(version.PropertyName) ?? throw new Exception($"Property {version.PropertyName} is not found");
+
+            var uow = new UnitOfWorkModel();
+            uow.FsNoteParentModels.Clear();
+            uow.FsNoteParentModels.AddRange(sheet.RawDataImport.DeepClone());
+            property.SetValue(sheet, uow);
+
+            var task = HandleSingleAsync(version.Path, uow, version.Version);
+            tasks.Add(task);
+        }
+
+        var startWatch = Stopwatch.StartNew();
+
         await Task.WhenAll(tasks);
 
-        await t1;
-        //await t2;
-
-        startWatch.Stop();
-
         var dict = sheet.Data.Where(x => !x.IsParent).ToDictionary(x => x.Id, x => x);
-
         var finalData = _workspaceService.CombineDataUnitOfWorks(sheet);
 
         foreach (var parent in finalData)
@@ -399,8 +417,8 @@ public partial class WorkspaceViewModel
             }
         }
 
+        startWatch.Stop();
         Debug.WriteLine($"(1) Time elapsed: {startWatch.ElapsedMilliseconds} ms");
-
     }
 
     public async Task HandleSingleAsync(string ocrPath, UnitOfWorkModel uow, string v)

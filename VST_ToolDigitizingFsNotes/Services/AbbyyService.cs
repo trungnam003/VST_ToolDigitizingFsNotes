@@ -52,14 +52,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
                 Process[] procs = Process.GetProcesses();
                 foreach (Process proc in procs)
                 {
-                    if ((proc.ProcessName != null
-                        && (proc.ProcessName.ToLower().Contains("fine") ||
-                        proc.ProcessName.ToLower().Contains("abbyy") ||
-                        proc.ProcessName.ToLower().Contains("cmd"))) ||
-                        (proc.MainWindowTitle != null &&
-                        (proc.MainWindowTitle.ToLower().Contains("fine") ||
-                        proc.MainWindowTitle.ToLower().Contains("abbyy") ||
-                        proc.MainWindowTitle.ToLower().Contains("cmd"))))
+                    if (IsAbbyyProcess(proc.ProcessName) || IsAbbyyProcess(proc.MainWindowTitle))
                     {
                         StopAbbyy(proc);
                     }
@@ -69,6 +62,22 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             {
                 throw;
             }
+        }
+
+        public static bool IsAbbyyProcess(string? processName)
+        {
+            var isAbbyy = false;
+            if (processName != null)
+            {
+                processName = processName.ToLower();
+                if (processName.Contains("fine", StringComparison.CurrentCultureIgnoreCase) ||
+                                       processName.Contains("abbyy", StringComparison.CurrentCultureIgnoreCase) ||
+                                                          processName.Contains("cmd", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    isAbbyy = true;
+                }
+            }
+            return isAbbyy;
         }
     }
 }

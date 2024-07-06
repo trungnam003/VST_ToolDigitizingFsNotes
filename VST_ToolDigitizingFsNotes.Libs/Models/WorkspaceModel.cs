@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Models
 {
@@ -66,9 +67,11 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     /// Đại diện cho một sheet trong file import
     /// 1 UnitOfWork tương ứng với thực hiện trên 1 sheet
     /// </summary>
-    public class SheetFsNoteModel
+    public partial class SheetFsNoteModel
     {
         public static readonly string None = "None";
+        [GeneratedRegex(@"^UowAbbyy[1][0-9]$")]
+        public static partial Regex UowAbbyyRegex();
         public class MetaData
         {
 
@@ -107,6 +110,12 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
 
         public UnitOfWorkModel? UowAbbyy14 { get; set; } = null;
         public UnitOfWorkModel? UowAbbyy15 { get; set; } = null;
+        public UnitOfWorkModel? UowAbbyy11 { get; set; } = null;
+
+        public IEnumerable<UnitOfWorkModel?> AllAbbyyUow => GetType().GetProperties()
+            .Where(x => UowAbbyyRegex().Match(x.Name).Success && x.PropertyType == typeof(UnitOfWorkModel))
+            .Select(x => x.GetValue(this) as UnitOfWorkModel)
+            .Where(x => x != null);
        
     }
     /// <summary>
