@@ -349,7 +349,7 @@ public partial class WorkspaceViewModel
                 {
                     Debug.WriteLine("Cút");
 
-                    new AbbyyService().ExitAllAbbyy();
+                    AbbyyService.ExitAllAbbyy();
                     break;
                 }
                 Debug.WriteLine("Chưa nữa nè");
@@ -384,7 +384,8 @@ public partial class WorkspaceViewModel
         {
             if (!version.IsCreated || version.Path == null)
             {
-                throw new Exception($"File Ocr {version.Version} is not created");
+                //throw new Exception($"File Ocr {version.Version} is not created");
+                continue;
             }
 
             var property = sheet.GetType().GetProperty(version.PropertyName) ?? throw new Exception($"Property {version.PropertyName} is not found");

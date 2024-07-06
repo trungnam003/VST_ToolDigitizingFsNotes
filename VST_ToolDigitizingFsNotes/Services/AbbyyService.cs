@@ -8,7 +8,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
     /// </summary>
     public class AbbyyService
     {
-        public Process? StartAbbyy(AbbyyCmdString abbyyCmdString)
+        public static Process? StartAbbyy(AbbyyCmdString abbyyCmdString)
         {
             try
             {
@@ -28,7 +28,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             }
         }
 
-        public void StopAbbyy(Process? process)
+        public static void StopAbbyy(Process? process)
         {
             try
             {
@@ -45,7 +45,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain.Services
             }
         }
 
-        public void ExitAllAbbyy()
+        public static void ExitAllAbbyy()
         {
             try
             {
