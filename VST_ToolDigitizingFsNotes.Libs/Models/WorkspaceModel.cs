@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Models
@@ -70,10 +71,18 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     public partial class SheetFsNoteModel
     {
         public static readonly string None = "None";
-        [GeneratedRegex(@"^UowAbbyy[1][0-9]$")]
+
+        [GeneratedRegex(@"^UowAbbyy(?<version>[1][0-9])$")]
         public static partial Regex UowAbbyyRegex();
-        public class MetaData
+
+        public partial class MetaData
         {
+
+            [GeneratedRegex(@"^FileOcrV[1][0-9]Path$")]
+            public static partial Regex FileOcrPathRegex();
+
+            [GeneratedRegex(@"^IsFileOcrV[1][0-9]Created$")]
+            public static partial Regex IsFileOcrCreatedRegex();
 
             public string? FilePdfFsPath { get; set; }
             public string? FileOcrV11Path { get; set; }
@@ -84,6 +93,16 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
             public bool IsFileOcrV11Created { get; set; }
             public bool IsFileOcrV14Created { get; set; }
             public bool IsFileOcrV15Created { get; set; }
+
+            public PropertyInfo? GetPathByVersion(string version)
+            {
+                return GetType().GetProperty($"FileOcrV{version}Path");
+            }
+
+            public PropertyInfo? GetIsCreatedByVersion(string version)
+            {
+                return GetType().GetProperty($"IsFileOcrV{version}Created");
+            }
         }
 
         public string? SheetName { get; set; }
@@ -116,6 +135,14 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
             .Where(x => UowAbbyyRegex().Match(x.Name).Success && x.PropertyType == typeof(UnitOfWorkModel))
             .Select(x => x.GetValue(this) as UnitOfWorkModel)
             .Where(x => x != null);
+
+        public static List<string> AbbyyVersionsEnable => typeof(SheetFsNoteModel).GetProperties()
+            .Where(x => UowAbbyyRegex().Match(x.Name).Success && x.PropertyType == typeof(UnitOfWorkModel))
+            .Select(x =>
+            {
+                var match = UowAbbyyRegex().Match(x.Name);
+                return match.Groups["version"].Value;
+            }).ToList();
        
     }
     /// <summary>

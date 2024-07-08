@@ -78,28 +78,63 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
         {
             try
             {
-                var data = moneysCol;
                 if (moneysCol.Count > SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength)
                 {
                     // split list
-                    data = moneysCol.Take(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
-                }
+                    var dataFirst = moneysCol.Take(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
 
-                var list = DetectUtils.FindAllSubsetSums(data, Math.Abs(parent!.Value), x => (x.Value),
-                    SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
-
-                if(list.Count > 0)
-                {
-                    request.IgnoreCols.Add(Target.Col);
-                    foreach (var moneyCol in list)
+                    var listFirst = DetectUtils.FindAllSubsetSums(dataFirst, Math.Abs(parent!.Value), x => (x.Value),
+                                               SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
+                    bool isFirstFound = false;
+                    if (listFirst.Count > 0)
                     {
-                        var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyCol, x => x.Row);
-                        if (check)
+                        request.IgnoreCols.Add(Target.Col);
+                        foreach (var moneyCol in listFirst)
                         {
-                            result.DataCols.Add(moneyCol);
+                            var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyCol, x => x.Row);
+                            if (check)
+                            {
+                                result.DataCols.Add(moneyCol);
+                                isFirstFound = true;
+                            }
                         }
                     }
-                    
+                    if (!isFirstFound)
+                    {
+                        var dataLast = moneysCol.TakeLast(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
+                        var listLast = DetectUtils.FindAllSubsetSums(dataLast, Math.Abs(parent!.Value), x => (x.Value),
+                                                                          SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
+                        if (listLast.Count > 0)
+                        {
+                            request.IgnoreCols.Add(Target.Col);
+                            foreach (var moneyCol in listLast)
+                            {
+                                var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyCol, x => x.Row);
+                                if (check)
+                                {
+                                    result.DataCols.Add(moneyCol);
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    var list = DetectUtils.FindAllSubsetSums(moneysCol, Math.Abs(parent!.Value), x => (x.Value),
+                   SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
+                    if (list.Count > 0)
+                    {
+                        request.IgnoreCols.Add(Target.Col);
+                        foreach (var moneyCol in list)
+                        {
+                            var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyCol, x => x.Row);
+                            if (check)
+                            {
+                                result.DataCols.Add(moneyCol);
+                            }
+                        }
+
+                    }
                 }
             }
             catch (Exception ex)
@@ -113,24 +148,61 @@ public class SpecifyMoneyInRangeEqualWithParentHandle : HandleChainBase<SpecifyM
         {
             try
             {
-                var data = moneysRow;
                 if (moneysRow.Count > SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength)
                 {
                     // split list
-                    data = moneysRow.Take(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
+                    var dataFirst = moneysRow.Take(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
+                    var listFirst = DetectUtils.FindAllSubsetSums(dataFirst, Math.Abs(parent!.Value), x => (x.Value),
+                                                                      SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
+                    bool isFirstFound = false;
+                    if (listFirst.Count > 0)
+                    {
+                        request.IgnoreRows.Add(Target.Row);
+                        foreach (var moneyRow in listFirst)
+                        {
+                            var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyRow, x => x.Col);
+                            if (check)
+                            {
+                                result.DataRows.Add(moneyRow);
+                                isFirstFound = true;
+                            }
+                        }
+                    }
+                    if (!isFirstFound)
+                    {
+                        var dataLast = moneysRow.TakeLast(SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength).ToList();
+                        var listLast = DetectUtils.FindAllSubsetSums(dataLast, Math.Abs(parent!.Value), x => (x.Value),
+                                                                                                 SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
+                        if (listLast.Count > 0)
+                        {
+                            request.IgnoreRows.Add(Target.Row);
+                            foreach (var moneyRow in listLast)
+                            {
+                                var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyRow, x => x.Col);
+                                if (check)
+                                {
+                                    result.DataRows.Add(moneyRow);
+                                }
+                            }
+                        }
+                    }
+
                 }
-                var list = DetectUtils.FindAllSubsetSums(data, Math.Abs(parent!.Value), x => (x.Value),
+                else
+                {
+                    var list = DetectUtils.FindAllSubsetSums(moneysRow, Math.Abs(parent!.Value), x => (x.Value),
                     SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
 
-                if (list.Count > 0)
-                {
-                    request.IgnoreRows.Add(Target.Row);
-                    foreach (var moneyRow in list)
+                    if (list.Count > 0)
                     {
-                        var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyRow, x => x.Col);
-                        if (check )
+                        request.IgnoreRows.Add(Target.Row);
+                        foreach (var moneyRow in list)
                         {
-                            result.DataRows.Add(moneyRow);
+                            var check = SpecifyMoneyInRangeEqualWithParentRequest.IsContinuousListMoney(moneyRow, x => x.Col);
+                            if (check)
+                            {
+                                result.DataRows.Add(moneyRow);
+                            }
                         }
                     }
                 }

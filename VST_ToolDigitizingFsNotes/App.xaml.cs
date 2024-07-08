@@ -145,6 +145,7 @@ namespace VST_ToolDigitizingFsNotes.AppMain
         {
             using (_host)
             {
+                AbbyyService.ExitAllAbbyy();
                 await _host.StopAsync(TimeSpan.FromSeconds(1));
             }
         }

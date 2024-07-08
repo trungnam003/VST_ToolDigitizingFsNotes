@@ -72,8 +72,8 @@ public class MapInRowHandler : HandleChainBase<MapFsNoteWithMoneyChainRequest>
         {
             var row = money.Row;
             var predicate = new Func<TextCellSuggestModel, bool>(
-               x => (x.Row == row || (x.CombineWithCell != null && x.CombineWithCell.Row == row))
-                && x.CellStatus == CellStatus.Default);
+               x => (x.Row == row && x.CellStatus == CellStatus.Default) 
+               || (x.CombineWithCell != null && x.CombineWithCell.Row == row && x.CellStatus == CellStatus.Combine));
 
             var rowWithRow = request.ListTextCellSuggests
                 .Except(evaluators.TextCellMapped)

@@ -1,5 +1,7 @@
 ﻿
 
+using System.Reflection;
+
 namespace VST_ToolDigitizingFsNotes.Libs.Common
 {
     public class UserSettings
@@ -9,5 +11,10 @@ namespace VST_ToolDigitizingFsNotes.Libs.Common
         public string? Abbyy15Path { get; set; }
         public string? WorkspaceFolderPath { get; set; }
         public string? FileMappingPath { get; set; }
+
+        public PropertyInfo? GetAbbyyProcessByVersion(string version)
+        {
+            return this.GetType().GetProperty($"Abbyy{version}Path");
+        }
     }
 }

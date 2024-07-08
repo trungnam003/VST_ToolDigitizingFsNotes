@@ -4,6 +4,7 @@ using Force.DeepCloner;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using NPOI.XSSF.UserModel;
+using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -244,76 +245,117 @@ public partial class WorkspaceViewModel
 
         var tasks = new List<Task>();
 
-        if (File.Exists(sheetMetadata.FileOcrV11Path))
+        var versions = SheetFsNoteModel.AbbyyVersionsEnable;
+
+        foreach(var version in versions)
         {
-            sheetMetadata.IsFileOcrV11Created = true;
-        }
-        else
-        {
-            /// ABBYY 11
-            var abbyy11String = new AbbyyCmdString.Builder()
-                .SetAbbyyPath(_userSettings.Abbyy11Path!)
-                .SetInputPath(sheetMetadata.FilePdfFsPath)
-                .SetOutputPath(sheetMetadata.FileOcrV11Path)
-                .SetQuitOnDone(true)
-                .UseVietnameseLanguge()
-                .Build();
-            var p11 = new AbbyyCmdManager(abbyy11String).StartAbbyyProcess();
-            var t11 = p11.WaitForExitAsync();
-            tasks.Add(t11);
+            var path = sheetMetadata.GetPathByVersion(version)?.GetValue(sheetMetadata)?.ToString();
+            var isCreatedProps = sheetMetadata.GetIsCreatedByVersion(version);
+            var abbyyProcessPath = _userSettings.GetAbbyyProcessByVersion(version)?.GetValue(_userSettings)?.ToString();
+            if (path == null || abbyyProcessPath == null || isCreatedProps == null)
+            {
+                continue;
+            }
+
+            if (File.Exists(path))
+            {
+                isCreatedProps?.SetValue(sheetMetadata, true);
+            }
+            else
+            {
+                var abbyyString = new AbbyyCmdString.Builder()
+                    .SetAbbyyPath(abbyyProcessPath)
+                    .SetInputPath(sheetMetadata.FilePdfFsPath)
+                    .SetOutputPath(path)
+                    .SetQuitOnDone(true)
+                    .UseVietnameseLanguge()
+                    .Build();
+                var p = new AbbyyCmdManager(abbyyString).StartAbbyyProcess();
+                var t = p.WaitForExitAsync();
+                tasks.Add(t);
+            }
         }
 
-        if (File.Exists(sheetMetadata.FileOcrV14Path))
-        {
-            sheetMetadata.IsFileOcrV14Created = true;
-        }
-        else
-        {
-            /// ABBYY 14
-            var abbyy14String = new AbbyyCmdString.Builder()
-                .SetAbbyyPath(_userSettings.Abbyy14Path!)
-                .SetInputPath(sheetMetadata.FilePdfFsPath)
-                .SetOutputPath(sheetMetadata.FileOcrV14Path)
-                .SetQuitOnDone(true)
-                .UseVietnameseLanguge()
-                .Build();
-            var p14 = new AbbyyCmdManager(abbyy14String).StartAbbyyProcess();
-            var t14 = p14.WaitForExitAsync();
-            tasks.Add(t14);
-        }
+        //if (File.Exists(sheetMetadata.FileOcrV11Path))
+        //{
+        //    sheetMetadata.IsFileOcrV11Created = true;
+        //}
+        //else
+        //{
+        //    /// ABBYY 11
+        //    var abbyy11String = new AbbyyCmdString.Builder()
+        //        .SetAbbyyPath(_userSettings.Abbyy11Path!)
+        //        .SetInputPath(sheetMetadata.FilePdfFsPath)
+        //        .SetOutputPath(sheetMetadata.FileOcrV11Path)
+        //        .SetQuitOnDone(true)
+        //        .UseVietnameseLanguge()
+        //        .Build();
+        //    var p11 = new AbbyyCmdManager(abbyy11String).StartAbbyyProcess();
+        //    var t11 = p11.WaitForExitAsync();
+        //    tasks.Add(t11);
+        //}
 
-        if (File.Exists(sheetMetadata.FileOcrV15Path))
-        {
-            sheetMetadata.IsFileOcrV15Created = true;
-        }
-        else
-        {
-            /// ABBYY 15
-            var abbyy15String = new AbbyyCmdString.Builder()
-                .SetAbbyyPath(_userSettings.Abbyy15Path!)
-                .SetInputPath(sheetMetadata.FilePdfFsPath)
-                .SetOutputPath(sheetMetadata.FileOcrV15Path)
-                .SetQuitOnDone(true)
-                .UseVietnameseLanguge()
-                .Build();
-            var p15 = new AbbyyCmdManager(abbyy15String).StartAbbyyProcess();
-            var t15 = p15.WaitForExitAsync();
-            tasks.Add(t15);
-        }
+        //if (File.Exists(sheetMetadata.FileOcrV14Path))
+        //{
+        //    sheetMetadata.IsFileOcrV14Created = true;
+        //}
+        //else
+        //{
+        //    /// ABBYY 14
+        //    var abbyy14String = new AbbyyCmdString.Builder()
+        //        .SetAbbyyPath(_userSettings.Abbyy14Path!)
+        //        .SetInputPath(sheetMetadata.FilePdfFsPath)
+        //        .SetOutputPath(sheetMetadata.FileOcrV14Path)
+        //        .SetQuitOnDone(true)
+        //        .UseVietnameseLanguge()
+        //        .Build();
+        //    var p14 = new AbbyyCmdManager(abbyy14String).StartAbbyyProcess();
+        //    var t14 = p14.WaitForExitAsync();
+        //    tasks.Add(t14);
+        //}
+
+        //if (File.Exists(sheetMetadata.FileOcrV15Path))
+        //{
+        //    sheetMetadata.IsFileOcrV15Created = true;
+        //}
+        //else
+        //{
+        //    /// ABBYY 15
+        //    var abbyy15String = new AbbyyCmdString.Builder()
+        //        .SetAbbyyPath(_userSettings.Abbyy15Path!)
+        //        .SetInputPath(sheetMetadata.FilePdfFsPath)
+        //        .SetOutputPath(sheetMetadata.FileOcrV15Path)
+        //        .SetQuitOnDone(true)
+        //        .UseVietnameseLanguge()
+        //        .Build();
+        //    var p15 = new AbbyyCmdManager(abbyy15String).StartAbbyyProcess();
+        //    var t15 = p15.WaitForExitAsync();
+        //    tasks.Add(t15);
+        //}
 
         if (tasks.Count > 0)
         {
             var tokenTimeout = TimeSpan.FromSeconds(remainPage * SecondPerPageDelay) + TimeSpan.FromMinutes(3);
             var cts = new CancellationTokenSource();
             cts.CancelAfter(tokenTimeout);
-            tasks.Add(InspectAllAbbyySuccess(sheet, cts.Token));
+            tasks.Add(InspectAllAbbyySuccess(sheet, versions, cts.Token));
 
             _homeViewModel.Status = $"Đang OCR file {fileName} (11)(14)(15)";
             await Task.WhenAll(tasks);
 
-            sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV11Path);
-            sheetMetadata.IsFileOcrV14Created = File.Exists(sheetMetadata.FileOcrV14Path);
-            sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
+            //sheetMetadata.IsFileOcrV11Created = File.Exists(sheetMetadata.FileOcrV11Path);
+            //sheetMetadata.IsFileOcrV14Created = File.Exists(sheetMetadata.FileOcrV14Path);
+            //sheetMetadata.IsFileOcrV15Created = File.Exists(sheetMetadata.FileOcrV15Path);
+
+            foreach (var version in versions)
+            {
+                var path = sheetMetadata.GetPathByVersion(version)?.GetValue(sheetMetadata)?.ToString();
+                if (File.Exists(path))
+                {
+                    sheetMetadata.GetIsCreatedByVersion(version)?.SetValue(sheetMetadata, true);
+                }
+            }
+
         }
         await HandleMultiTaskAsync(sheet);
 
@@ -323,7 +365,7 @@ public partial class WorkspaceViewModel
         _homeViewModel.Status = $"Hoàn tất {fileName}";
     }
 
-    public static async Task InspectAllAbbyySuccess(SheetFsNoteModel sheet, CancellationToken cancellation = default)
+    public static async Task InspectAllAbbyySuccess(SheetFsNoteModel sheet, List<string> versions, CancellationToken cancellation = default)
     {
         // exit if cancel
         try
@@ -340,15 +382,23 @@ public partial class WorkspaceViewModel
             while (true)
             {
                 cancellation.ThrowIfCancellationRequested();
-                var is11Success = File.Exists(sheetMetadata.FileOcrV11Path);
-                var is14Success = File.Exists(sheetMetadata.FileOcrV14Path);
-                var is15Success = File.Exists(sheetMetadata.FileOcrV15Path);
-                var message = $"11-{is11Success}; 14{is14Success}; 15{is15Success}";
-                Debug.WriteLine(message);
-                if (is11Success && is14Success && is15Success)
+                var allVersionSucess = true;
+                var messgae = "";
+                foreach(var version in versions)
                 {
-                    Debug.WriteLine("Cút");
-
+                    
+                    var path = sheetMetadata.GetPathByVersion(version)?.GetValue(sheetMetadata)?.ToString();
+                    messgae += $"{version} - {File.Exists(path)}";
+                    if (!File.Exists(path))
+                    {
+                        allVersionSucess = false;
+                        break;
+                    }
+                }
+                Debug.WriteLine(messgae);
+                if (allVersionSucess)
+                {
+                    Debug.WriteLine("Kết thúc");
                     AbbyyService.ExitAllAbbyy();
                     break;
                 }
@@ -373,12 +423,20 @@ public partial class WorkspaceViewModel
     {
         var metadata = sheet.Meta ?? throw new Exception("Sheet metadata is null");
 
-        var versions = new[]
+        //var versions = new[]
+        //{
+        //    new { IsCreated = metadata.IsFileOcrV15Created, Path = metadata.FileOcrV15Path, PropertyName = nameof(sheet.UowAbbyy15), Version = "V15" },
+        //    new { IsCreated = metadata.IsFileOcrV14Created, Path = metadata.FileOcrV14Path, PropertyName = nameof(sheet.UowAbbyy14), Version = "V14" },
+        //    new { IsCreated = metadata.IsFileOcrV11Created, Path = metadata.FileOcrV11Path, PropertyName = nameof(sheet.UowAbbyy11), Version = "V11" }
+        //};
+        var sheetData = sheet.Meta;
+        var versions = SheetFsNoteModel.AbbyyVersionsEnable.Select(v =>
         {
-            new { IsCreated = metadata.IsFileOcrV15Created, Path = metadata.FileOcrV15Path, PropertyName = nameof(sheet.UowAbbyy15), Version = "V15" },
-            new { IsCreated = metadata.IsFileOcrV14Created, Path = metadata.FileOcrV14Path, PropertyName = nameof(sheet.UowAbbyy14), Version = "V14" },
-            new { IsCreated = metadata.IsFileOcrV11Created, Path = metadata.FileOcrV11Path, PropertyName = nameof(sheet.UowAbbyy11), Version = "V11" }
-        };
+            var isCreated = metadata.GetIsCreatedByVersion(v)?.GetValue(metadata) as bool? ?? false;
+            var path = metadata.GetPathByVersion(v)?.GetValue(metadata)?.ToString();
+            return new { IsCreated = isCreated, Path = path, PropertyName = sheet.GetType().GetProperty($"UowAbbyy{v}")?.Name, Version = v };
+        }).ToList();
+
         var tasks = new List<Task>();
         foreach (var version in versions)
         {
@@ -388,7 +446,7 @@ public partial class WorkspaceViewModel
                 continue;
             }
 
-            var property = sheet.GetType().GetProperty(version.PropertyName) ?? throw new Exception($"Property {version.PropertyName} is not found");
+            var property = sheet.GetType().GetProperty(version.PropertyName ?? "") ?? throw new Exception($"Property {version.PropertyName} is not found");
 
             var uow = new UnitOfWorkModel();
             uow.FsNoteParentModels.Clear();
@@ -396,6 +454,7 @@ public partial class WorkspaceViewModel
             property.SetValue(sheet, uow);
 
             var task = HandleSingleAsync(version.Path, uow, version.Version);
+            //await task;
             tasks.Add(task);
         }
 
