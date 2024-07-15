@@ -9,7 +9,7 @@ public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<Specif
     /// <summary>
     /// Số này phù hợp nhất, nếu lớn hơn thì xử lý rất lâu
     /// </summary>
-    public const int AllowListMoneyLength = 24;
+    public const int AllowListMoneyLength = 20;
     public UnitOfWorkModel UnitOfWork { get; init; }
     public FsNoteDataMap DataMap { get; init; }
 
@@ -26,19 +26,19 @@ public class SpecifyMoneyInRangeEqualWithParentRequest : ChainBaseRequest<Specif
 
     public static bool IsContinuousListMoney(List<MoneyCellModel> lst, Func<MoneyCellModel, int> selector, double threshold = 0.8)
     {
-        if(lst.Count == 0)
+        if (lst.Count == 0)
         {
             return false;
         }
-        if(lst.Count == 1)
+        if (lst.Count == 1)
         {
             return true;
         }
         lst.Sort((x, y) => selector(x).CompareTo(selector(y)));
         var lstDistances = new List<int>();
-        for(int i = 1; i< lst.Count; i++)
+        for (int i = 1; i < lst.Count; i++)
         {
-            lstDistances.Add(selector(lst[i]) - selector(lst[i-1]));
+            lstDistances.Add(selector(lst[i]) - selector(lst[i - 1]));
         }
         var std = CoreUtils.CalculateStandardDeviation(lstDistances);
         return std < threshold;
@@ -265,7 +265,7 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
                 var moneyRows = DetectUtils.FindAllSubsetSums(data, Math.Abs(parent!.Value), x => (x.Value),
                     SpecifyMoneyInRangeEqualWithParentRequest.AllowListMoneyLength, ctsToken);
 
-                if(moneyRows.Count > 0)
+                if (moneyRows.Count > 0)
                 {
                     foreach (var moneyRow in moneyRows)
                     {
@@ -275,8 +275,8 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
                             result.DataRows.Add(moneyRow);
                         }
                     }
-                }    
-               
+                }
+
             }
             catch (Exception ex)
             {
@@ -313,7 +313,7 @@ public class SpecifyAllMoneyInRangeHandle : HandleChainBase<SpecifyMoneyInRangeE
                         }
                     }
                 }
-                
+
             }
             catch (Exception ex)
             {

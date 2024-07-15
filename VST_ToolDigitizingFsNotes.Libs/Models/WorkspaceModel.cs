@@ -163,8 +163,10 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
         public List<double> Values { get; set; }
 
         public bool IsParent { get; set; }
-    }
 
+        public bool IsFormulaCell { get; set; }
+    }
+     
     public class WorkspaceModel
     {
         public string Name { get; set; }

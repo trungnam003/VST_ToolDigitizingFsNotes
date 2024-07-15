@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text.RegularExpressions;
 using VST_ToolDigitizingFsNotes.Libs.Common;
+using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
 
@@ -60,12 +61,26 @@ public class WorkspaceService : IWorkspaceService
         if (allUow.Count == 0)
             throw new ArgumentException("All UowAbbyy is null");
 
+        var firstUow = allUow[0] ?? throw new ArgumentException("First UowAbbyy is null");
+       
+
         var listHandle = allUow.Select(x => x!.FsNoteParentModels).ToList();
 
         if (listHandle == null || listHandle.Count == 0)
             throw new ArgumentException("All UowAbbyy.FsNoteParentModels is null");
 
         var results = HandleCombineData(listHandle);
+
+        results.ForEach(x =>
+        {
+            x.Value *= firstUow.CalculationUnit.ToInt32();
+            x.Values = x.Values.Select(v => v * firstUow.CalculationUnit.ToInt32()).ToList();
+            x.Children.ForEach(c =>
+            {
+                c.Value *= firstUow.CalculationUnit.ToInt32();
+                c.Values = c.Values.Select(v => v * firstUow.CalculationUnit.ToInt32()).ToList();
+            });
+        });
 
         return results;
         //if (sheet.UowAbbyy14 == null && sheet.UowAbbyy15 == null && sheet.UowAbbyy11 == null)
@@ -120,6 +135,7 @@ public class WorkspaceService : IWorkspaceService
                     maxCount = countParentNextData;
                 }
             }
+
             results.Add(maxData);
         }
 

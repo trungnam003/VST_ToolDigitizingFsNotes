@@ -33,6 +33,13 @@ public static partial class DetectUtils
     [GeneratedRegex(@"^(?<pos>\b(?:\d{1,3}(?:[.,]\d{3}){1,5})\b)$|^(?<neg>\(\b(?:\d{1,3}(?:[.,]\d{3}){1,5})\b\))$")]
     public static partial Regex MoneyRegexHard();
 
+    /// <summary>
+    /// Xử lý đơn vị tính triệu
+    /// </summary>
+    /// <returns></returns>
+    [GeneratedRegex(@"(?<pos>(?<![\d,.])\b(?:[1-9]\d{0,2}|999)\b(?![\d,.]))|(?<neg>\((?<![\d,.])\b(?:[1-9]\d{0,2}|999)\b(?![\d,.])\))", RegexOptions.Singleline)]
+    public static partial Regex MoneyLessThan1000Regex();
+
     #endregion
 
     #region Regex Heading

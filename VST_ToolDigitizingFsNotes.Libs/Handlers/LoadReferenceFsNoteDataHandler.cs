@@ -74,6 +74,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Handlers
 
             return validName && validNoteId && validColor;
         }
+
         private List<FsNoteParentModel> LoadDataFromSheetName(HSSFWorkbook workbook, string sheetName)
         {
             ArgumentException.ThrowIfNullOrEmpty(sheetName);
@@ -150,10 +151,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Handlers
                     else
                     {
                         var cellValue = row.GetCell(_dataReaderSheetSetting.ValueAddress.Col);
-                        if (cellValue.CellType == CellType.Formula)
-                        {
-                            continue;
-                        }
+                        
                         var model = new FsNoteModel
                         {
                             FsNoteId = noteId,
@@ -164,7 +162,14 @@ namespace VST_ToolDigitizingFsNotes.Libs.Handlers
                             CellAddress = $"{(char)('A' + _dataReaderSheetSetting.ValueAddress.Col)}{i}",
                             Group = countGroup.TryGetValue(currentParentId, out int group) ? group : 0
                         };
-                        currentParent?.Children.Add(model);
+                        if (cellValue.CellType == CellType.Formula)
+                        {
+                            currentParent?.FormulaCells.Add(model);
+                        }
+                        else
+                        {
+                            currentParent?.Children.Add(model);
+                        }
                     }
                 }
                 catch (Exception)

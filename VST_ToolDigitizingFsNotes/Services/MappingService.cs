@@ -23,14 +23,16 @@ public class MappingService : IMappingService
     private const int ColumnExtensionKeyword = 4;
     #endregion
 
-    private readonly Dictionary<int, FsNoteParentMappingModel> _mapping;
+    private readonly FsNoteMapping _mapping;
     private readonly UserSettings _userSettings;
     private readonly DataReaderMapSetting _dataReaderMapSetting;
-    public MappingService(Dictionary<int, FsNoteParentMappingModel> mapping, UserSettings userSettings, DataReaderMapSetting dataReaderMapSetting)
+    private readonly StockCodeFsNoteMapping _stockCodeFsNoteMapping;
+    public MappingService(StockCodeFsNoteMapping stockCodeFsNoteMapping, FsNoteMapping mapping, UserSettings userSettings, DataReaderMapSetting dataReaderMapSetting)
     {
         _mapping = mapping;
         _userSettings = userSettings;
         _dataReaderMapSetting = dataReaderMapSetting;
+        _stockCodeFsNoteMapping = stockCodeFsNoteMapping;
     }
 
     public async Task LoadMapping()
@@ -49,12 +51,17 @@ public class MappingService : IMappingService
 
     private FileInfo ValidateFileMapping()
     {
-        if (string.IsNullOrEmpty(_userSettings.FileMappingPath))
+        return ValidateFileMapping(_userSettings.FileMappingPath);
+    }
+
+    private static FileInfo ValidateFileMapping(string? path)
+    {
+        if (string.IsNullOrEmpty(path))
         {
             throw new ArgumentNullException("FileMappingPath is null or empty");
         }
 
-        var fileMapping = new FileInfo(_userSettings.FileMappingPath);
+        var fileMapping = new FileInfo(path);
 
         if (!fileMapping.Exists)
         {
@@ -100,8 +107,8 @@ public class MappingService : IMappingService
                 {
                     Id = (int)noteId,
                     Name = name,
-                    Keywords = [.. keyword.Split(',').Select(x => x.Trim())],
-                    KeywordExtensions = [.. extensionKeyword.Split(',').Select(x => x.Trim())],
+                    Keywords = [.. keyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
+                    KeywordExtensions = [.. extensionKeyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
                     Children = [[]],
                     IsDisabled = FsNoteMappingBase.Disabled.Equals(keyword),
                     TotalGroup = 0
@@ -119,8 +126,8 @@ public class MappingService : IMappingService
                 {
                     Id = (int)noteId,
                     Name = name,
-                    Keywords = [.. keyword.Split(',').Select(x => x.Trim())],
-                    KeywordExtensions = [.. extensionKeyword.Split(',').Select(x => x.Trim())],
+                    Keywords = [.. keyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
+                    KeywordExtensions = [.. extensionKeyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
                     ParentId = parentId,
                     IsFormula = isFormula,
                     IsOther = isOther
@@ -196,7 +203,7 @@ public class MappingService : IMappingService
                             dataMap.Result[dataMap.PosOtherFsNoteId].Values.Add(value);
                         }
                     }
-                    
+
                 }
 
                 if (rs.RemainMoneys != null && rs.RemainMoneys.Count != 0)
@@ -233,18 +240,17 @@ public class MappingService : IMappingService
 
                     if (posModel != null && negModel != null)
                     {
-                        TransferNumbers( posModel.Values, negModel.Values);
+                        TransferNumbers(posModel.Values, negModel.Values);
                         posModel.Value = posModel.Values.Sum();
                         negModel.Value = negModel.Values.Sum();
                     }
-
                 }
 
                 break;
             }
         }
     }
-    static void TransferNumbers( List<double> positiveNumbers,  List<double> negativeNumbers)
+    static void TransferNumbers(List<double> positiveNumbers, List<double> negativeNumbers)
     {
         // Chuyển tất cả các số dương từ negativeNumbers sang positiveNumbers
         var positiveFromNegative = negativeNumbers.Where(x => x > 0).ToList();
@@ -337,25 +343,88 @@ public class MappingService : IMappingService
             return null;
         }
 
-        var row = range.ListTextCellSuggestModels[0].Row;
-        List<MoneyCellModel>? moneys = range.MoneyResults.DataRows.Find(x => x.Count > 0 && x[0].Row == row);
-        if (moneys == null)
+        if(CheckIsMergeAll(range))
+        {
+            var row = range.ListTextCellSuggestModels[0].Row;
+            List<MoneyCellModel>? moneys = range.MoneyResults.DataRows.Find(x => x.Count > 0 && x[0].Row == row);
+            if (moneys == null)
+            {
+                return null;
+            }
+            moneys.Sort(MoneyCellModel.MoneyCellModelComparer);
+
+            var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels, moneys);
+
+            var handler1 = new MapSingleCellHandler();
+
+            handler1.Handle(request);
+
+            if (request.Handled && request.Result != null)
+            {
+                return request.Result;
+            }
+        }
+        else
+        {
+            var first = range.ListTextCellSuggestModels[0];
+            return MapSingleFsNoteAndPushRemain(range, first);
+        }
+       
+        return null;
+    }
+
+    private static MapEvaluators? MapSingleFsNoteAndPushRemain(RangeDetectFsNote range, TextCellSuggestModel textCell)
+    {
+        var mapEvaluators = new MapEvaluators();
+        var row = textCell.Row;
+        var col = textCell.Col;
+        var rsCol = range.MoneyResults!.DataCols.Find(x => x.Any(x => x.Row == row))?.FirstOrDefault(x => x.Row == row);
+        var rsRow = range.MoneyResults!.DataRows.Find(x => x.Any(x => x.Col == col))?.FirstOrDefault(x => x.Col == col);
+
+        if(rsRow == null && rsCol == null)
         {
             return null;
         }
-        moneys.Sort(MoneyCellModel.MoneyCellModelComparer);
 
-        var request = new MapFsNoteWithMoneyChainRequest(range.ListTextCellSuggestModels, moneys);
-
-        var handler1 = new MapSingleCellHandler();
-
-        handler1.Handle(request);
-
-        if (request.Handled && request.Result != null)
+        // ưu tiên map chung 1 hàng (cột - cột; abc | 1234)
+        if(rsCol!= null)
         {
-            return request.Result;
+            var mapEvaluator = new MapEvaluator(textCell, rsCol);
+            mapEvaluators.ListMapEvaluators.Add(mapEvaluator);
+            var remain = range.MoneyResults!.DataCols.Find(x => x.Any(x => x.Row == row))?.Except([rsCol]).ToList();
+            mapEvaluators.RemainMoneys = remain;
+            return mapEvaluators;
         }
+
+        if (rsRow != null)
+        {
+            var mapEvaluator = new MapEvaluator(textCell, rsRow);
+            mapEvaluators.ListMapEvaluators.Add(mapEvaluator);
+            var remain = range.MoneyResults!.DataRows.Find(x => x.Any(x => x.Col == col))?.Except([rsRow]).ToList();
+            mapEvaluators.RemainMoneys = remain;
+            return mapEvaluators;
+        }
+
         return null;
+    }
+
+    private static bool CheckIsMergeAll(RangeDetectFsNote range)
+    {
+        if(range.MoneyResults == null)
+        {
+            return false;
+        }
+        if(range.MoneyResults.DataCols.Count == 1 && range.MoneyResults.DataRows.Count == 1)
+        {
+            var dataCol = range.MoneyResults.DataCols[0];
+            var dataRow = range.MoneyResults.DataRows[0];
+            if(dataCol.Count == dataRow.Count)
+            {
+                var result = dataCol.Zip(dataRow, (x, y) => x.Value == y.Value).All(x => x);
+                return result;
+            }
+        }
+        return false;
     }
 
     public void CombineUnitOfWorks(UnitOfWorkModel uow)
@@ -389,7 +458,10 @@ public class MappingService : IMappingService
             var keyword = row.GetCell(_dataReaderMapSetting.KeywordsAddress.Col)?.StringCellValue ?? string.Empty;
             var extensionKeyword = row.GetCell(_dataReaderMapSetting.KeywordExtensionAddress.Col)?.StringCellValue ?? string.Empty;
             var other = row.GetCell(_dataReaderMapSetting.OtherAddress.Col)?.StringCellValue ?? string.Empty;
-
+            if (noteId == 0 || string.IsNullOrEmpty(name))
+            {
+                continue;
+            }
             if (isParent)
             {
                 var previousParentId = currentParentId;
@@ -406,8 +478,8 @@ public class MappingService : IMappingService
                 {
                     Id = (int)noteId,
                     Name = name,
-                    Keywords = [.. keyword.Split(',').Select(x => x.Trim())],
-                    KeywordExtensions = [.. extensionKeyword.Split(',').Select(x => x.Trim())],
+                    Keywords = [.. keyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
+                    KeywordExtensions = [.. extensionKeyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
                     Children = [[]],
                     IsDisabled = FsNoteMappingBase.Disabled.Equals(keyword),
                     TotalGroup = 0
@@ -425,8 +497,8 @@ public class MappingService : IMappingService
                 {
                     Id = (int)noteId,
                     Name = name,
-                    Keywords = [.. keyword.Split(',').Select(x => x.Trim())],
-                    KeywordExtensions = [.. extensionKeyword.Split(',').Select(x => x.Trim())],
+                    Keywords = [.. keyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
+                    KeywordExtensions = [.. extensionKeyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
                     ParentId = parentId,
                     IsFormula = isFormula,
                     IsOther = isOther,
@@ -435,5 +507,130 @@ public class MappingService : IMappingService
                 parent.Children[parent.TotalGroup].Add(child);
             }
         }
+    }
+
+    public async Task<bool> LoadMappingWithStockCode(string path, string stockCode)
+    {
+        var fileInfo = ValidateFileMapping(path);
+        await using var fs = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
+        using var workbook = await Task.Run(() => new XSSFWorkbook(fs));
+        var sheet = workbook.GetSheetAt(0) ?? throw new ArgumentNullException("Sheet is null");
+        int currentParentId = -1;
+        Dictionary<int, int> countGroup = [];
+        int startRow = _dataReaderMapSetting.NoteIdAddress.Row;
+
+        var mapping = new FsNoteMapping();
+
+        for (var i = startRow; i <= sheet.LastRowNum; i++)
+        {
+            var row = sheet.GetRow(i) ?? throw new ArgumentNullException("Row is null");
+
+            var noteId = row.GetCell(_dataReaderMapSetting.NoteIdAddress.Col).NumericCellValue;
+            var name = row.GetCell(_dataReaderMapSetting.NameAddress.Col).StringCellValue;
+            var isParent = FsNoteMappingBase.Parent.Equals(row.GetCell(_dataReaderMapSetting.CheckParentAddress.Col).StringCellValue.ToLower().Trim());
+            var keyword = row.GetCell(_dataReaderMapSetting.KeywordsAddress.Col)?.StringCellValue ?? string.Empty;
+            var extensionKeyword = row.GetCell(_dataReaderMapSetting.KeywordExtensionAddress.Col)?.StringCellValue ?? string.Empty;
+            var other = row.GetCell(_dataReaderMapSetting.OtherAddress.Col)?.StringCellValue ?? string.Empty;
+
+            if (noteId == 0 || string.IsNullOrEmpty(name))
+            {
+                continue;
+            }
+
+            if (isParent)
+            {
+                var previousParentId = currentParentId;
+                currentParentId = (int)noteId;
+
+                if (mapping.TryGetValue(currentParentId, out FsNoteParentMappingModel? value) && currentParentId == previousParentId)
+                {
+                    countGroup[currentParentId]++;
+                    value.Children.Add([]);
+                    value.TotalGroup = countGroup[currentParentId];
+                    continue;
+                }
+                mapping.Add((int)noteId, new FsNoteParentMappingModel
+                {
+                    Id = (int)noteId,
+                    Name = name,
+                    Keywords = [.. keyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
+                    KeywordExtensions = [.. extensionKeyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
+                    Children = [[]],
+                    IsDisabled = FsNoteMappingBase.Disabled.Equals(keyword),
+                    TotalGroup = 0
+                });
+                countGroup.Add(currentParentId, 0);
+            }
+            else
+            {
+                var parentId = currentParentId;
+                var isFormula = keyword.Equals(FsNoteMappingBase.Formula);
+                var otherType = FsNoteMappingBase.ToMappingOtherType(other != string.Empty ? other[0] : ' ');
+                var isOther = otherType != MappingOtherType.None;
+                var parent = mapping[parentId];
+                var child = new FsNoteMappingModel
+                {
+                    Id = (int)noteId,
+                    Name = name,
+                    Keywords = [.. keyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
+                    KeywordExtensions = [.. extensionKeyword.Split(',').Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())],
+                    ParentId = parentId,
+                    IsFormula = isFormula,
+                    IsOther = isOther,
+                    OtherType = otherType
+                };
+                parent.Children[parent.TotalGroup].Add(child);
+            }
+        }
+        _stockCodeFsNoteMapping.TryAdd(stockCode, mapping);
+        return true;
+    }
+
+    public List<FsNoteMappingModel>? GetChildrenMappingList(int id, int group, string stockCode)
+    {
+        _mapping.TryGetValue(id, out var currentMapping);
+        if (currentMapping == null)
+        {
+            return null;
+        }
+        FsNoteMapping? mappingStockCode = null;
+        if (_stockCodeFsNoteMapping.TryGetValue(stockCode, out var mapping))
+        {
+            mappingStockCode = mapping;
+        }
+        if (group > currentMapping.Children.Count)
+        {
+            return null;
+        }
+        var childrentMappings = currentMapping.Children[group - 1];
+        
+        if (mappingStockCode == null)
+        {
+            return childrentMappings;
+        }
+
+        mappingStockCode.TryGetValue(id, out var currentMappingStockCode);
+        if (currentMappingStockCode == null)
+        {
+            return childrentMappings;
+        }
+        if(group > currentMappingStockCode.Children.Count)
+        {
+            return childrentMappings;
+        }
+        var childrentMappingsStockCode = currentMappingStockCode.Children[group - 1];
+
+        List<FsNoteMappingModel> mappingCombine = [];
+        foreach (var child in childrentMappings)
+        {
+            var childClone = child.DeepClone();
+            var childStockCode = childrentMappingsStockCode.FirstOrDefault(x => x.Id == childClone.Id);
+            if (childStockCode != null)
+            {
+                childClone.Keywords.AddRange(childStockCode.Keywords);
+            }
+            mappingCombine.Add(childClone);
+        }
+        return mappingCombine;
     }
 }

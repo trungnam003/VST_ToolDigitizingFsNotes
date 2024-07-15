@@ -1,5 +1,6 @@
 ﻿using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
+using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
 
 namespace VST_ToolDigitizingFsNotes.Libs.Models
 {
@@ -10,12 +11,14 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     public sealed class UnitOfWorkModel : IDisposable
     {
         public object lockObject = new();
+        public required string StockCode { get; set; }
         public List<HeadingCellModel> HeadingCellModels { get; }
         public List<MoneyCellModel> MoneyCellModels { get; }
         public List<FsNoteParentModel> FsNoteParentModels { get; }
         public XSSFWorkbook? OcrWorkbook { get; set; }
         public ISheet? GetOcrSheet() => OcrWorkbook?.GetSheetAt(0); 
         public HashSet<SpecifiedRange> SpecifiedRanges { get; } = [];
+        public CalculationUnit CalculationUnit { get; set; } = CalculationUnit.One;
 
         private bool _disposed;
 

@@ -105,7 +105,8 @@ public partial class TestMapDataViewModel
 
             using var uow = new UnitOfWorkModel()
             {
-                OcrWorkbook = workbookOcr15
+                OcrWorkbook = workbookOcr15,
+                StockCode = ""
             };
 
             await HandleUnitOfWorkAsync(uow, workbookInput);

@@ -29,6 +29,7 @@ namespace VST_ToolDigitizingFsNotes.Libs.Models
     public class FsNoteParentModel : FsNoteModel
     {
         public List<FsNoteModel> Children { get; set; } = [];
+        public List<FsNoteModel> FormulaCells { get; set; } = [];
 
         public override string ToString()
         {

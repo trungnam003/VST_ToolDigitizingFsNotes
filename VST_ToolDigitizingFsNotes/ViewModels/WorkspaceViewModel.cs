@@ -3,14 +3,16 @@ using CommunityToolkit.Mvvm.Input;
 using Force.DeepCloner;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using NPOI.HSSF.UserModel;
+using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
-using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using VST_ToolDigitizingFsNotes.AppMain.Services;
 using VST_ToolDigitizingFsNotes.Libs.Common;
+using VST_ToolDigitizingFsNotes.Libs.Common.Enums;
 using VST_ToolDigitizingFsNotes.Libs.Handlers;
 using VST_ToolDigitizingFsNotes.Libs.Models;
 using VST_ToolDigitizingFsNotes.Libs.Services;
@@ -25,7 +27,7 @@ public enum WorkspaceInitStatus
 
 public partial class WorkspaceViewModel : ObservableObject
 {
-    private const int SecondPerPageDelay = 3;
+    private const int SecondPerPageDelay = 12;
     private readonly IServiceProvider _serviceProvider;
     private readonly IWorkspaceService _workspaceService;
     private readonly HomeViewModel _homeViewModel;
@@ -35,6 +37,8 @@ public partial class WorkspaceViewModel : ObservableObject
     private readonly IDetectService _detectService;
     private readonly IMappingService _mappingService;
     public readonly WorkspaceMetadata workspaceMetadata;
+    private readonly DataReaderSheetSetting _dataReaderSheetSetting;
+    private readonly StockCodeFsNoteMapping _stockCodeFsNoteMapping;
 
     public WorkspaceViewModel(IServiceProvider serviceProvider, string? dir = null)
     {
@@ -46,6 +50,9 @@ public partial class WorkspaceViewModel : ObservableObject
         _pdfService = _serviceProvider.GetRequiredService<IPdfService>();
         _detectService = _serviceProvider.GetRequiredService<IDetectService>();
         _mappingService = _serviceProvider.GetRequiredService<IMappingService>();
+        _dataReaderSheetSetting = _serviceProvider.GetRequiredService<DataReaderSheetSetting>();
+        _stockCodeFsNoteMapping = _serviceProvider.GetRequiredService<StockCodeFsNoteMapping>();
+
         Name = _workspaceService.GenerateName();
         workspaceMetadata = new WorkspaceMetadata
         {
@@ -71,7 +78,12 @@ public partial class WorkspaceViewModel : ObservableObject
         {
             var sheets = value.FsNoteSheets.Select(x => x.Key).ToList() ?? [];
             Sheets = new ObservableCollection<string>(sheets);
-            SelectedSheetName = sheets.FirstOrDefault() ?? string.Empty;
+            SelectedSheetName = string.Empty;
+            var sheet = sheets.FirstOrDefault();
+            if (!string.IsNullOrEmpty(sheet))
+            {
+                SelectedSheetName = sheet;
+            }
         }
 
     }
@@ -90,6 +102,10 @@ public partial class WorkspaceViewModel : ObservableObject
 
     partial void OnSelectedSheetNameChanged(string value)
     {
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
         Task.Run(() => LoadDataAsync(value));
     }
 
@@ -150,9 +166,158 @@ public partial class WorkspaceViewModel : ObservableObject
     [RelayCommand]
     private async Task ExportDataToFileAsync()
     {
-        await Task.Delay(1000);
-        // show dialog to test
-        MessageBox.Show("Export data to file");
+        _homeViewModel.IsLoading = true;
+        try
+        {
+            await Task.Delay(10);
+            foreach (var file in FileImportFsNoteModels)
+            {
+                var fileName = Path.GetFileName(file.SourcePath);
+                file.DestinationPath = Path.Combine(workspaceMetadata.OutputPath, fileName);
+                File.Copy(file.SourcePath, file.DestinationPath, true);
+            }
+
+            foreach (var file in FileImportFsNoteModels)
+            {
+                if (string.IsNullOrEmpty(file.DestinationPath))
+                {
+                    continue;
+                }
+                await using var fs = new FileStream(file.DestinationPath, FileMode.Open, FileAccess.Read);
+                var workbook = await Task.Run(() => new HSSFWorkbook(fs));
+
+                LoadDataToFileImport(workbook, file.FsNoteSheets);
+                EvaluateAllFormulaCellSheet(workbook);
+
+                await using var fsW = new FileStream(file.DestinationPath, FileMode.Create, FileAccess.Write);
+                workbook.Write(fsW);
+                workbook.Dispose();
+                await fs.DisposeAsync();
+            }
+
+            MessageBox.Show("Xuất file thành công", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Lỗi: " + ex.Message, "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _homeViewModel.IsLoading = false;
+        }
+    }
+
+    private void LoadDataToFileImport(HSSFWorkbook workbook, Dictionary<string, SheetFsNoteModel> sheets)
+    {
+        foreach (var key in sheets.Keys)
+        {
+            var value = sheets[key];
+            var sheet = workbook.GetSheet(key);
+            if (sheet == null)
+            {
+                continue;
+            }
+            var data = value.RawDataImport;
+            foreach (var parent in data)
+            {
+                var children = parent.Children;
+                foreach (var child in children)
+                {
+                    if (child.Value == 0 || child.Values.Count == 0)
+                    {
+                        continue;
+                    }
+                    var cell = sheet.GetRow(child.Cell.Item1)?.GetCell(child.Cell.Item2);
+                    if (cell == null)
+                    {
+                        continue;
+                    }
+
+                    if (child.Values.Count == 1)
+                    {
+                        cell.SetCellValue(child.Value);
+                    }
+                    else
+                    {
+
+                        //var sb = new StringBuilder();
+                        //for (int i = 0; i < child.Values.Count; i++)
+                        //{
+                        //    var itemData = child.Values[i];
+                        //    var pattern = $"{itemData} + ";
+                        //    if (i == child.Values.Count - 1)
+                        //    {
+                        //        pattern = $"{itemData}";
+                        //    }
+                        //    sb.Append(pattern);
+                        //}
+                        //cell.SetCellFormula(sb.ToString());
+
+                        // use sum excel formula
+                        var formula = $"SUM({string.Join(',', child.Values)})";
+                        cell.SetCellFormula(formula);
+                    }
+                }
+                var colFormula = _dataReaderSheetSetting.ParentValueAddress.Col;
+                var rowFormula = parent.Cell.Item1;
+                var cellFormula = sheet.GetRow(rowFormula)?.GetCell(colFormula);
+
+                var colValue = _dataReaderSheetSetting.ValueAddress.Col;
+                var rowValue = parent.Cell.Item1;
+                var cellValue = sheet.GetRow(rowValue)?.GetCell(colValue);
+
+                if (cellFormula != null)
+                {
+                    IFormulaEvaluator formulaEvaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
+                    formulaEvaluator.EvaluateFormulaCell(cellFormula);
+                }
+
+                if (cellValue != null)
+                {
+                    IFormulaEvaluator formulaEvaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
+                    formulaEvaluator.EvaluateFormulaCell(cellValue);
+                }
+
+                var childrenFormula = parent.FormulaCells;
+                foreach (var child in childrenFormula)
+                {
+                    var cell = sheet.GetRow(child.Cell.Item1)?.GetCell(child.Cell.Item2);
+                    if (cell != null)
+                    {
+                        IFormulaEvaluator formulaEvaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
+                        formulaEvaluator.EvaluateFormulaCell(cell);
+                    }
+                }
+            }
+        }
+    }
+
+    private void EvaluateAllFormulaCellSheet(HSSFWorkbook workbook)
+    {
+        var targetSheetName = "Tong hop";
+        var sheet = workbook.GetSheet(targetSheetName);
+        if(sheet == null)
+        {
+            return;
+        }   
+        IFormulaEvaluator formulaEvaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
+        foreach (IRow row in sheet)
+        {
+            foreach (ICell cell in row)
+            {
+                if (cell.CellType == CellType.Formula)
+                {
+                    try
+                    {
+                        formulaEvaluator.EvaluateFormulaCell(cell);
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+                }
+            }
+        }
     }
 
 }
@@ -200,9 +365,52 @@ public partial class WorkspaceViewModel
         }
     }
 
+    public static int CaculatePageNumberSplit(int totalPages)
+    {
+        if (totalPages <= 0)
+        {
+            throw new ArgumentException("Total pages must be greater than zero.");
+        }
+        if (totalPages <= 40)
+        {
+            const double split = (double)1 / 3;
+            return (int)(totalPages * split);
+        }
+
+        if (totalPages > 40)
+        {
+            const double split = (double)1 / 2;
+            var r = (totalPages * split);
+            return (int)r;
+        }
+        return 10;
+    }
+
+    private async Task<bool> LoadMappingByStockCode(string stockCode)
+    {
+        if (_stockCodeFsNoteMapping.ContainsKey(stockCode))
+        {
+            return true;
+        }
+        var mappingPath = _userSettings.FileMappingPath;
+        var pathWithoutFile = Path.GetDirectoryName(mappingPath);
+        var fileName = Path.GetFileNameWithoutExtension(mappingPath);
+        var ext = Path.GetExtension(mappingPath);
+        var mappingPathStockCode = Path.Combine(pathWithoutFile!, $"{fileName}_{stockCode}{ext}");
+
+        if (!File.Exists(mappingPathStockCode))
+        {
+            return false;
+        }
+
+        return await _mappingService.LoadMappingWithStockCode(mappingPathStockCode, stockCode);
+    }
+
     private async Task HandleSheetAsync(SheetFsNoteModel sheet)
     {
         ArgumentNullException.ThrowIfNullOrEmpty(sheet.FileUrl, "FileUrl is null or empty");
+
+        await LoadMappingByStockCode(sheet.StockCode!);
 
         var fileName = Path.GetFileName(sheet.FileUrl);
         var sheetMetadata = sheet.Meta = new()
@@ -234,20 +442,17 @@ public partial class WorkspaceViewModel
             }
             var totalPage = await _pdfService.GetPdfPageCountAsync(sheetMetadata.FilePdfFsPath);
             bool splitResult = false;
-            if(totalPage > 30)
-            {
-                splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, 30, totalPage);
-                sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
-                remainPage = totalPage - 30;
-            }
-            sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath);
+            var caculatePageNumberSplit = CaculatePageNumberSplit(totalPage);
+            splitResult = await _pdfService.SplitPdfAsync(sheetMetadata.FilePdfFsPath, caculatePageNumberSplit, totalPage);
+            sheetMetadata.IsDownloaded = File.Exists(sheetMetadata.FilePdfFsPath) && splitResult;
+            remainPage = totalPage - caculatePageNumberSplit;
         }
 
         var tasks = new List<Task>();
 
         var versions = SheetFsNoteModel.AbbyyVersionsEnable;
 
-        foreach(var version in versions)
+        foreach (var version in versions)
         {
             var path = sheetMetadata.GetPathByVersion(version)?.GetValue(sheetMetadata)?.ToString();
             var isCreatedProps = sheetMetadata.GetIsCreatedByVersion(version);
@@ -377,16 +582,14 @@ public partial class WorkspaceViewModel
             }
             var sheetMetadata = sheet.Meta;
 
-            //await Task.Delay(TimeSpan.FromMinutes(3), cancellation);
-
             while (true)
             {
                 cancellation.ThrowIfCancellationRequested();
                 var allVersionSucess = true;
                 var messgae = "";
-                foreach(var version in versions)
+                foreach (var version in versions)
                 {
-                    
+
                     var path = sheetMetadata.GetPathByVersion(version)?.GetValue(sheetMetadata)?.ToString();
                     messgae += $"{version} - {File.Exists(path)}";
                     if (!File.Exists(path))
@@ -448,19 +651,22 @@ public partial class WorkspaceViewModel
 
             var property = sheet.GetType().GetProperty(version.PropertyName ?? "") ?? throw new Exception($"Property {version.PropertyName} is not found");
 
-            var uow = new UnitOfWorkModel();
+            var uow = new UnitOfWorkModel()
+            {
+                StockCode = sheet.StockCode!
+            };
             uow.FsNoteParentModels.Clear();
             uow.FsNoteParentModels.AddRange(sheet.RawDataImport.DeepClone());
             property.SetValue(sheet, uow);
 
             var task = HandleSingleAsync(version.Path, uow, version.Version);
-            //await task;
-            tasks.Add(task);
+            await task;
+            //tasks.Add(task);
         }
 
         var startWatch = Stopwatch.StartNew();
 
-        await Task.WhenAll(tasks);
+        //await Task.WhenAll(tasks);
 
         var dict = sheet.Data.Where(x => !x.IsParent).ToDictionary(x => x.Id, x => x);
         var finalData = _workspaceService.CombineDataUnitOfWorks(sheet);
@@ -476,6 +682,9 @@ public partial class WorkspaceViewModel
                 }
             }
         }
+
+        sheet.RawDataImport.Clear();
+        sheet.RawDataImport.AddRange(finalData);
 
         startWatch.Stop();
         Debug.WriteLine($"(1) Time elapsed: {startWatch.ElapsedMilliseconds} ms");
@@ -493,8 +702,77 @@ public partial class WorkspaceViewModel
         }
         var reqDetectData = new DetectDataRequest(ref uow);
         var taskDetectData = await _mediator.Send(reqDetectData);
+        if (!taskDetectData)
+        {
+            throw new Exception("Detect data failed");
+        }
+
+        var calculationUnit = SpecifyCalculationUnit(uow);
+        uow.CalculationUnit = calculationUnit;
+
+        foreach (var parent in uow.FsNoteParentModels)
+        {
+            parent.Value = Math.Truncate(parent.Value / calculationUnit.ToInt32());
+        }
+
         await Task.Run(() => _detectService.StartDetectFsNotesAsync(uow));
         Debug.WriteLine($"Done {v}");
+    }
+
+    /// <summary>
+    /// Xác định đơn vị tính của tài liệu
+    /// </summary>
+    /// <param name="uow"></param>
+    /// <returns></returns>
+    private static CalculationUnit SpecifyCalculationUnit(UnitOfWorkModel uow)
+    {
+        var moneys = uow.MoneyCellModels;
+        var moneyValues = moneys.Select(x => x.Value).ToList();
+        moneyValues.Sort((x, y) => x.CompareTo(y));
+        var countOne = 0;
+        var countThousand = 0;
+        var countMillion = 0;
+        foreach (var parent in uow.FsNoteParentModels)
+        {
+            var search = parent.Value;
+            if (search == 0)
+            {
+                continue;
+            }
+            var searchOne = Math.Truncate(search / CalculationUnit.One.ToInt32());
+            var searchThousand = Math.Truncate(search / CalculationUnit.Thousand.ToInt32());
+            var searchMillion = Math.Truncate(search / CalculationUnit.Million.ToInt32());
+
+            var indexOne = moneyValues.BinarySearch(searchOne);
+            var indexThousand = moneyValues.BinarySearch(searchThousand);
+            var indexMillion = moneyValues.BinarySearch(searchMillion);
+
+            if (indexOne >= 0)
+            {
+                countOne++;
+            }
+
+            if (indexThousand >= 0)
+            {
+                countThousand++;
+            }
+
+            if (indexMillion >= 0)
+            {
+                countMillion++;
+            }
+        }
+        List<int> lst = [countOne, countThousand, countMillion];
+        var max = lst.Max();
+        if (max == countOne)
+        {
+            return CalculationUnit.One;
+        }
+        if (max == countThousand)
+        {
+            return CalculationUnit.Thousand;
+        }
+        return CalculationUnit.Million;
     }
     #endregion
 }

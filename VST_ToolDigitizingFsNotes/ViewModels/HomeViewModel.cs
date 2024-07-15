@@ -4,6 +4,7 @@ using MediatR;
 using Newtonsoft.Json;
 using NPOI.HPSF;
 using NPOI.HSSF.UserModel;
+using NPOI.SS.Formula.Functions;
 using NPOI.SS.UserModel;
 using Ookii.Dialogs.Wpf;
 using System.IO;
@@ -392,6 +393,11 @@ namespace VST_ToolDigitizingFsNotes.AppMain.ViewModels
                     else
                     {
                         model.IsParent = false;
+                        var formulaCell = row.GetCell(_dataReaderSheetSetting.ValueAddress.Col);
+                        if(formulaCell != null)
+                        {
+                           model.IsFormulaCell = formulaCell.CellType == CellType.Formula;
+                        }
                     }
                     sheetFsNoteModel.Data.Add(model);
                 }
